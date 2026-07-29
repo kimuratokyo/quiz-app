@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 
 // --- 型定義 ---
 type Genre = '応用情報' | '統計検定2級';
@@ -106,7 +107,7 @@ export default function App() {
 
   const handleNext = useCallback(() => {
     if (currentQuestionIndex + 1 < targetQuestions.length) {
-      setFlipCount(0);
+      setFlipCount(prev => (prev % 2 === 0 ? prev + 2 : prev + 1));
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
       setScreen('result');
@@ -115,7 +116,7 @@ export default function App() {
 
   const handlePrev = useCallback(() => {
     if (currentQuestionIndex > 0) {
-      setFlipCount(0);
+      setFlipCount(prev => (prev % 2 === 0 ? prev + 2 : prev + 1));
       setCurrentQuestionIndex(prev => prev - 1);
     }
   }, [currentQuestionIndex]);
@@ -232,18 +233,19 @@ export default function App() {
     exitTransform = `translateX(-150vw) rotate(-30deg)`;
   }
 
-  const cardTransformStyle = {
+  // スワイプ・移動用（親要素）
+  const swipeTransformStyle = {
     transform: exitAnim 
       ? exitTransform
       : isDragging 
-        ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg) rotateY(${flipCount * 180}deg)`
-        : `rotateY(${isAnimEnabled ? flipCount * 180 : (flipCount % 2 !== 0 ? 180 : 0)}deg)`,
-    transition: isDragging ? 'none' : (!isAnimEnabled && !exitAnim ? 'none' : 'transform 0.5s ease-out')
+        ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg)`
+        : `translateX(0px) translateY(0px) rotate(0deg)`,
+    transition: isDragging ? 'none' : (!isAnimEnabled && !exitAnim ? 'none' : 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)')
   };
 
   // Watermarks Opacity
-  const nextOpacity = Math.min(Math.max(swipeX / 100, 0), 1);
-  const bookmarkOpacity = Math.min(Math.max(-swipeX / 100, 0), 1);
+  const nextOpacity = Math.max(0, Math.min(1, swipeX / 100));
+  const bookmarkOpacity = Math.max(0, Math.min(1, -swipeX / 100));
 
   return (
     <div className="min-h-screen bg-mesh text-slate-200 flex items-center justify-center p-4 sm:p-6 font-sans antialiased selection:bg-indigo-500/30 overflow-hidden">
@@ -398,75 +400,91 @@ export default function App() {
                 </div>
               )}
 
-              {/* スワイプ可能なコンテナ（手前） */}
+              {/* スワイプ可能なコンテナ（手前・親） */}
               <div 
-                key={currentQuestionIndex}
-                className="w-full h-full max-h-[500px] relative transform-style-3d z-10"
-                style={cardTransformStyle}
+                className="w-full h-full max-h-[500px] relative z-10"
+                style={swipeTransformStyle}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerCancel={handlePointerUp}
               >
                 
-                {/* 表面 (Question) */}
-                <div className="absolute inset-0 backface-hidden bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col items-center justify-center text-center group overflow-hidden">
+                {/* フリップ回転用コンテナ（子） */}
+                <motion.div 
+                  className="w-full h-full absolute inset-0 transform-style-3d"
+                  initial={false}
+                  animate={{ rotateY: isAnimEnabled ? flipCount * -180 : (flipCount % 2 !== 0 ? -180 : 0) }}
+                  transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+                >
                   
-                  {/* 透かし (Watermarks) */}
-                  <div className="absolute top-1/2 left-8 -translate-y-1/2 border-4 border-indigo-400 text-indigo-400 font-black text-3xl sm:text-4xl rounded-2xl px-6 py-2 transform -rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: nextOpacity }}>
-                    次へ
-                  </div>
-                  <div className="absolute top-1/2 right-8 -translate-y-1/2 border-4 border-amber-400 text-amber-400 font-black text-2xl sm:text-4xl rounded-2xl px-4 py-2 transform rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: bookmarkOpacity }}>
-                    ★ ブックマーク
-                  </div>
-
-                  <span className="absolute top-6 left-6 text-sm font-black tracking-widest text-indigo-400/50 uppercase">Question</span>
-                  
-                  <div className="overflow-y-auto max-h-[80%] w-full flex items-center justify-center">
-                    <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight">
-                      {targetQuestions[currentQuestionIndex]?.question}
-                    </h3>
-                  </div>
-                  
-                  <div className="absolute bottom-6 flex items-center text-indigo-300/70 text-sm font-bold gap-2 bg-black/20 px-4 py-2 rounded-full pointer-events-none">
-                    タップして解答を見る
-                  </div>
-                </div>
-
-                {/* 裏面 (Answer) */}
-                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800 border border-indigo-500/50 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
-                  
-                  <div className="absolute top-1/2 left-8 -translate-y-1/2 border-4 border-amber-400 text-amber-400 font-black text-2xl sm:text-4xl rounded-2xl px-4 py-2 transform -rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: bookmarkOpacity }}>
-                    ★ ブックマーク
-                  </div>
-                  <div className="absolute top-1/2 right-8 -translate-y-1/2 border-4 border-indigo-400 text-indigo-400 font-black text-4xl rounded-2xl px-6 py-2 transform rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: nextOpacity }}>
-                    次へ
-                  </div>
-
-                  <div className="flex justify-between items-center mb-6 shrink-0 z-10 relative">
-                    <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">Answer</span>
-                    <button 
-                      className="text-sm font-bold text-slate-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-white/10 pointer-events-none"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-                      問題へ戻る
-                    </button>
-                  </div>
-                  
-                  <div className="flex-grow flex flex-col justify-center overflow-y-auto w-full z-10 relative">
-                    <p className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 mb-8 pb-8 border-b border-white/10 leading-snug text-center">
-                      {targetQuestions[currentQuestionIndex]?.answer}
-                    </p>
+                  {/* 表面 (Question) */}
+                  <div className="absolute inset-0 backface-hidden bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
                     
-                    <div className="bg-black/30 rounded-2xl p-6 border border-white/5 relative">
-                      <span className="absolute -top-3 left-6 text-xs font-black tracking-widest text-slate-400 uppercase bg-[#0f172a] px-2">解説</span>
-                      <p className="text-slate-300 leading-relaxed sm:text-lg">
-                        {targetQuestions[currentQuestionIndex]?.explanation}
-                      </p>
+                    {/* ラベルを絶対配置にして表裏で完全に位置を固定 */}
+                    <div className="absolute top-8 left-8 sm:top-12 sm:left-12 z-20">
+                      <span className="text-sm font-black tracking-widest text-emerald-400 uppercase bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 shadow-sm">Question</span>
+                    </div>
+                    
+                    <div className="flex-grow flex items-center justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
+                      <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight text-center">
+                        {targetQuestions[currentQuestionIndex]?.question}
+                      </h3>
+                    </div>
+                    
+                    {/* フッターヒントも絶対配置で統一 */}
+                    <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-20">
+                      <span className="text-indigo-300/70 text-sm font-bold bg-black/20 px-4 py-2 rounded-full">
+                        タップして解答を見る
+                      </span>
                     </div>
                   </div>
-                </div>
 
+                  {/* 裏面 (Answer) */}
+                  <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800 border border-indigo-500/50 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
+                    
+                    {/* 表面と全く同じ絶対配置のラベル */}
+                    <div className="absolute top-8 left-8 sm:top-12 sm:left-12 z-20">
+                      <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20 shadow-sm">Answer</span>
+                    </div>
+                    
+                    <div className="flex-grow flex flex-col justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
+                      <p className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 mb-8 pb-8 border-b border-white/10 leading-snug text-center">
+                        {targetQuestions[currentQuestionIndex]?.answer}
+                      </p>
+                      
+                      <div className="bg-black/30 rounded-2xl p-6 border border-white/5 relative">
+                        <span className="absolute -top-3 left-6 text-xs font-black tracking-widest text-slate-400 uppercase bg-[#0f172a] px-2">解説</span>
+                        <p className="text-slate-300 leading-relaxed sm:text-lg">
+                          {targetQuestions[currentQuestionIndex]?.explanation}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-20">
+                      <span className="text-slate-400/70 text-sm font-bold bg-black/20 px-4 py-2 rounded-full">
+                        スワイプで次へ進む
+                      </span>
+                    </div>
+                  </div>
+
+                </motion.div>
+              </div>
+
+              {/* 透かし (Watermarks - 回転要素の外側に配置し、表裏共通にする) */}
+              <div className="absolute inset-0 z-50 pointer-events-none flex justify-center items-center overflow-hidden rounded-3xl">
+                <div 
+                  className="absolute border-[12px] border-emerald-500 text-emerald-500 font-black text-6xl sm:text-7xl rounded-3xl px-12 py-6 transform -rotate-12 bg-slate-900/60 backdrop-blur-md"
+                  style={{ opacity: nextOpacity, transition: isDragging ? 'none' : 'opacity 0.2s', textShadow: '0 4px 20px rgba(16,185,129,0.5)', boxShadow: '0 10px 40px rgba(16,185,129,0.3)' }}
+                >
+                  NEXT
+                </div>
+                <div 
+                  className="absolute border-[12px] border-rose-500 text-rose-500 font-black text-5xl sm:text-6xl rounded-3xl px-12 py-6 transform rotate-12 bg-slate-900/60 backdrop-blur-md"
+                  style={{ opacity: bookmarkOpacity, transition: isDragging ? 'none' : 'opacity 0.2s', textShadow: '0 4px 20px rgba(244,63,94,0.5)', boxShadow: '0 10px 40px rgba(244,63,94,0.3)' }}
+                >
+                  BOOKMARK
+                </div>
               </div>
             </div>
 

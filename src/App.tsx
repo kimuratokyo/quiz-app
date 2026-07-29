@@ -233,13 +233,15 @@ export default function App() {
     exitTransform = `translateX(-150vw) rotate(-30deg)`;
   }
 
+  const targetRotation = isAnswerRevealed ? 180 : 0;
+
   const cardTransformStyle = {
     transform: exitAnim 
       ? exitTransform
       : isDragging 
-        ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg) rotateY(${flipCount * 180}deg)`
-        : `rotateY(${isAnimEnabled ? flipCount * 180 : (isAnswerRevealed ? 180 : 0)}deg)`,
-    transition: isDragging ? 'none' : (!isAnimEnabled && !exitAnim ? 'none' : 'transform 0.3s ease-in-out')
+        ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg) rotateY(${targetRotation}deg)`
+        : `rotateY(${targetRotation}deg)`,
+    transition: isDragging ? 'none' : (!isAnimEnabled && !exitAnim ? 'none' : 'transform 0.4s ease-out')
   };
 
   // Watermarks Opacity

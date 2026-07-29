@@ -46,7 +46,8 @@ export default function App() {
   
   const [targetQuestions, setTargetQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
+  const [flipCount, setFlipCount] = useState(0);
+  const isAnswerRevealed = flipCount % 2 !== 0;
   
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -98,34 +99,25 @@ export default function App() {
     setSelectedGenre(genre);
     setPlayMode(mode);
     setCurrentQuestionIndex(0);
-    setIsAnswerRevealed(false);
+    setFlipCount(0);
     setScreen('quiz');
   };
 
   const handleNext = useCallback(() => {
     if (currentQuestionIndex + 1 < targetQuestions.length) {
-      setIsAnswerRevealed(false);
-      // アニメーションOFFなら即時反映、ONならフリップを待つ
-      if (isAnimEnabled) {
-        setTimeout(() => setCurrentQuestionIndex(prev => prev + 1), 150);
-      } else {
-        setCurrentQuestionIndex(prev => prev + 1);
-      }
+      setFlipCount(0);
+      setCurrentQuestionIndex(prev => prev + 1);
     } else {
       setScreen('result');
     }
-  }, [currentQuestionIndex, targetQuestions.length, isAnimEnabled]);
+  }, [currentQuestionIndex, targetQuestions.length]);
 
   const handlePrev = useCallback(() => {
     if (currentQuestionIndex > 0) {
-      setIsAnswerRevealed(false);
-      if (isAnimEnabled) {
-        setTimeout(() => setCurrentQuestionIndex(prev => prev - 1), 150);
-      } else {
-        setCurrentQuestionIndex(prev => prev - 1);
-      }
+      setFlipCount(0);
+      setCurrentQuestionIndex(prev => prev - 1);
     }
-  }, [currentQuestionIndex, isAnimEnabled]);
+  }, [currentQuestionIndex]);
 
   const handleRestart = () => {
     setScreen('title');
@@ -172,7 +164,7 @@ export default function App() {
     const isTap = Math.abs(swipeX) < 15 && Math.abs(swipeY) < 15 && timeDelta < 500;
     
     if (isTap) {
-      setIsAnswerRevealed(prev => !prev);
+      setFlipCount(prev => prev + 1);
     } else {
       const SWIPE_THRESHOLD = 80;
       if (swipeX > SWIPE_THRESHOLD) {
@@ -206,7 +198,7 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault();
-        setIsAnswerRevealed(prev => !prev);
+        setFlipCount(prev => prev + 1);
       } else if (e.code === 'ArrowRight') {
         handleNext();
       } else if (e.code === 'ArrowLeft') {
@@ -222,12 +214,11 @@ export default function App() {
   if (!isMounted) return <div className="min-h-screen bg-slate-950" />;
 
   // Dynamic Styles
-  const flipDurationClass = isAnimEnabled ? 'transition-transform duration-700' : 'transition-none';
-  const cardTransformStyle = isDragging ? {
-    transform: `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg)`,
-    transition: 'none'
-  } : {
-    transition: 'transform 0.3s ease-out'
+  const cardTransformStyle = {
+    transform: isDragging 
+      ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg) rotateY(${flipCount * 180}deg)`
+      : `rotateY(${isAnimEnabled ? flipCount * 180 : (isAnswerRevealed ? 180 : 0)}deg)`,
+    transition: isDragging || !isAnimEnabled ? 'none' : 'transform 0.5s ease-out'
   };
 
   // Watermarks Opacity
@@ -377,9 +368,20 @@ export default function App() {
             {/* 3Dカードエリア */}
             <div className="flex-grow flex items-center justify-center relative perspective-1000 mb-8 z-10 cursor-pointer">
               
-              {/* スワイプ可能なコンテナ */}
+              {/* 次の問題のカード（背景用） */}
+              {currentQuestionIndex + 1 < targetQuestions.length && (
+                <div className="absolute w-full h-full max-h-[500px] bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-8 sm:p-12 shadow-sm scale-95 opacity-50 translate-y-4 pointer-events-none z-0 flex flex-col items-center justify-center text-center">
+                  <span className="absolute top-6 left-6 text-sm font-black tracking-widest text-indigo-400/30 uppercase">Next</span>
+                  <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white/50 tracking-tight">
+                    {targetQuestions[currentQuestionIndex + 1]?.question}
+                  </h3>
+                </div>
+              )}
+
+              {/* スワイプ可能なコンテナ（手前） */}
               <div 
-                className={`w-full h-full max-h-[500px] relative transform-style-3d ${flipDurationClass} ${isAnswerRevealed ? 'rotate-y-180' : ''}`}
+                key={currentQuestionIndex}
+                className="w-full h-full max-h-[500px] relative transform-style-3d z-10"
                 style={cardTransformStyle}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
@@ -424,7 +426,7 @@ export default function App() {
                   <div className="flex justify-between items-center mb-6 shrink-0 z-10 relative">
                     <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">Answer</span>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); setIsAnswerRevealed(false); }}
+                      onClick={(e) => { e.stopPropagation(); setFlipCount(prev => prev + 1); }}
                       className="text-sm font-bold text-slate-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-white/10"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>

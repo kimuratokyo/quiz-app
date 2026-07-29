@@ -141,27 +141,27 @@ export default function App() {
     handleNext();
   }, [bookmarks, currentQuestionIndex, targetQuestions, handleNext, handleToggleBookmark]);
 
-  // Touch Event Handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
+  // Pointer Event Handlers (Unifies Touch and Mouse, fixes mobile double-fire bug)
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return; // Only left click for mouse
     touchStartRef.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
+      x: e.clientX,
+      y: e.clientY,
       time: Date.now()
     };
     setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
-    const deltaX = e.touches[0].clientX - touchStartRef.current.x;
-    const deltaY = e.touches[0].clientY - touchStartRef.current.y;
-    // 上下スクロールと競合しないよう、横スワイプがある程度大きい場合のみpreventDefaultするなどの考慮が必要だが、
-    // 全画面アプリとしてpreventDefaultしてしまう（あるいはCSSのtouch-actionで制限する）
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging || !touchStartRef.current) return;
+    const deltaX = e.clientX - touchStartRef.current.x;
+    const deltaY = e.clientY - touchStartRef.current.y;
     setSwipeX(deltaX);
     setSwipeY(deltaY);
   };
 
-  const handleTouchEnd = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
     if (!touchStartRef.current) {
       setIsDragging(false);
       return;
@@ -172,7 +172,7 @@ export default function App() {
     const isTap = Math.abs(swipeX) < 15 && Math.abs(swipeY) < 15 && timeDelta < 500;
     
     if (isTap) {
-      setIsAnswerRevealed(!isAnswerRevealed);
+      setIsAnswerRevealed(prev => !prev);
     } else {
       const SWIPE_THRESHOLD = 80;
       if (swipeX > SWIPE_THRESHOLD) {
@@ -192,6 +192,11 @@ export default function App() {
     setSwipeX(0);
     setSwipeY(0);
     touchStartRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (err) {
+      // Ignore if pointer capture was already lost
+    }
   };
 
 
@@ -376,21 +381,10 @@ export default function App() {
               <div 
                 className={`w-full h-full max-h-[500px] relative transform-style-3d ${flipDurationClass} ${isAnswerRevealed ? 'rotate-y-180' : ''}`}
                 style={cardTransformStyle}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onMouseDown={(e) => {
-                  // For mouse testing
-                  setIsDragging(true);
-                  touchStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
-                }}
-                onMouseMove={(e) => {
-                  if (!isDragging || !touchStartRef.current) return;
-                  setSwipeX(e.clientX - touchStartRef.current.x);
-                  setSwipeY(e.clientY - touchStartRef.current.y);
-                }}
-                onMouseUp={handleTouchEnd}
-                onMouseLeave={() => { if(isDragging) handleTouchEnd() }}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
               >
                 
                 {/* 表面 (Question) */}

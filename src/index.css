@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+@theme {
+  --animate-fade-in: fade-in 0.5s ease-out forwards;
+  
+  @keyframes fade-in {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Beautiful moving mesh gradient background */
+.bg-mesh {
+  background-color: #020617; /* slate-950 */
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+    radial-gradient(at 90% 10%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+    radial-gradient(at 90% 90%, rgba(14, 165, 233, 0.15) 0px, transparent 50%),
+    radial-gradient(at 10% 90%, rgba(236, 72, 153, 0.12) 0px, transparent 50%);
+  background-attachment: fixed;
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- 型定義 ---
 type Genre = '応用情報' | '統計検定2級';
@@ -14,139 +14,69 @@ type PlayMode = 'all' | 'bookmark';
 
 // --- モックデータ ---
 const quizData: Question[] = [
-  // 応用情報
-  {
-    id: 'ap-1',
-    genre: '応用情報',
-    question: 'MTBFとMTTRからシステムの稼働率を求める計算式は？',
-    answer: 'MTBF / (MTBF + MTTR)',
-    explanation: 'MTBF(平均故障間隔)は正常に稼働している平均時間、MTTR(平均修復時間)は修理にかかる平均時間です。稼働率は 全時間(MTBF+MTTR) に占める 稼働時間(MTBF) の割合で求められます。'
-  },
-  {
-    id: 'ap-2',
-    genre: '応用情報',
-    question: '関係データベースにおいて、レコードを一意に識別するための属性または属性の組を何というか？',
-    answer: '主キー (Primary Key)',
-    explanation: '主キーには「一意性(重複しない)」と「非NULL制約(空であってはいけない)」という2つの条件を満たす必要があります。'
-  },
-  {
-    id: 'ap-3',
-    genre: '応用情報',
-    question: '仮想記憶方式において、主記憶と磁気ディスクの間で固定長のブロック単位で領域を管理する方式は？',
-    answer: 'ページング方式',
-    explanation: '固定長のブロックを「ページ」と呼びます。一方、可変長の論理的な単位で管理する方式は「セグメント方式」と呼びます。'
-  },
-  {
-    id: 'ap-4',
-    genre: '応用情報',
-    question: 'TCP/IPモデルにおいて、HTTPやFTPが属する階層はどれか？',
-    answer: 'アプリケーション層',
-    explanation: 'TCP/IPモデルは4階層(アプリケーション層、トランスポート層、インターネット層、ネットワークインターフェース層)からなり、HTTP/FTP/SMTPなどはアプリケーション層に分類されます。'
-  },
-  {
-    id: 'ap-5',
-    genre: '応用情報',
-    question: '公開鍵暗号方式において、送信者のデジタル署名を検証するために使用する鍵はどれか？',
-    answer: '送信者の公開鍵',
-    explanation: 'デジタル署名では、送信者が「自身の秘密鍵」で暗号化（署名）し、受信者が「送信者の公開鍵」で復号（検証）することで、改ざんやなりすましを検知します。'
-  },
-  // 統計検定2級
-  {
-    id: 'st-1',
-    genre: '統計検定2級',
-    question: '標準正規分布の平均と分散はそれぞれいくつか？',
-    answer: '平均 0、分散 1',
-    explanation: '任意の正規分布 N(μ, σ²) に従う変数Xは、Z = (X - μ) / σ と変換（標準化）することで、平均0・分散1の標準正規分布 N(0, 1) に従います。'
-  },
-  {
-    id: 'st-2',
-    genre: '統計検定2級',
-    question: '帰無仮説が正しいにもかかわらず、誤って棄却してしまうエラーを何というか？',
-    answer: '第一種の過誤 (アルファエラー)',
-    explanation: '「本当は差がないのに、差があると結論づけてしまう」慌て者のエラーです。有意水準(α)はこの第一種の過誤を犯す確率の許容上限を意味します。'
-  },
-  {
-    id: 'st-3',
-    genre: '統計検定2級',
-    question: '2つの変数の間に線形関係があるかどうかを示す指標で、-1から1の値をとるものは？',
-    answer: 'ピアソンの積率相関係数',
-    explanation: '相関係数(r)は、1に近いほど強い正の相関、-1に近いほど強い負の相関、0に近いほど線形関係がないことを示します。因果関係を示すものではない点に注意が必要です。'
-  },
-  {
-    id: 'st-4',
-    genre: '統計検定2級',
-    question: '母集団から抽出されたサンプルの平均値（標本平均）の分散は、サンプルサイズ(n)が大きくなるにつれてどうなるか？',
-    answer: '小さくなる',
-    explanation: '母分散を σ² とすると、標本平均の分散は σ² / n となります。つまりサンプルサイズが大きいほど、標本平均は母平均の周辺に集中しやすくなります。'
-  },
-  {
-    id: 'st-5',
-    genre: '統計検定2級',
-    question: '質的データ（カテゴリデータ）の独立性の検定によく用いられる確率分布は？',
-    answer: 'カイ二乗分布',
-    explanation: 'クロス集計表において、観測度数と期待度数のズレ（カイ二乗値）を計算し、カイ二乗分布を用いて2つの変数に連関（依存関係）があるかどうかを検定します。'
-  },
+  { id: 'ap-1', genre: '応用情報', question: 'MTBFとMTTRからシステムの稼働率を求める計算式は？', answer: 'MTBF / (MTBF + MTTR)', explanation: 'MTBF(平均故障間隔)は正常に稼働している平均時間、MTTR(平均修復時間)は修理にかかる平均時間です。' },
+  { id: 'ap-2', genre: '応用情報', question: '関係データベースにおいて、レコードを一意に識別するための属性または属性の組を何というか？', answer: '主キー (Primary Key)', explanation: '主キーには「一意性(重複しない)」と「非NULL制約(空であってはいけない)」という2つの条件を満たす必要があります。' },
+  { id: 'ap-3', genre: '応用情報', question: '仮想記憶方式において、主記憶と磁気ディスクの間で固定長のブロック単位で領域を管理する方式は？', answer: 'ページング方式', explanation: '固定長のブロックを「ページ」と呼びます。可変長の論理的な単位で管理する方式は「セグメント方式」です。' },
+  { id: 'ap-4', genre: '応用情報', question: 'TCP/IPモデルにおいて、HTTPやFTPが属する階層はどれか？', answer: 'アプリケーション層', explanation: 'TCP/IPモデルは4階層からなり、HTTP/FTP/SMTPなどはアプリケーション層に分類されます。' },
+  { id: 'ap-5', genre: '応用情報', question: '公開鍵暗号方式において、送信者のデジタル署名を検証するために使用する鍵はどれか？', answer: '送信者の公開鍵', explanation: '送信者が「自身の秘密鍵」で暗号化し、受信者が「送信者の公開鍵」で復号することで、なりすましを検知します。' },
+  { id: 'st-1', genre: '統計検定2級', question: '標準正規分布の平均と分散はそれぞれいくつか？', answer: '平均 0、分散 1', explanation: '任意の正規分布に従う変数は、標準化することで平均0・分散1の標準正規分布に従います。' },
+  { id: 'st-2', genre: '統計検定2級', question: '帰無仮説が正しいにもかかわらず、誤って棄却してしまうエラーを何というか？', answer: '第一種の過誤 (アルファエラー)', explanation: '「本当は差がないのに、差があると結論づけてしまう」慌て者のエラーです。' },
+  { id: 'st-3', genre: '統計検定2級', question: '2つの変数の間に線形関係があるかどうかを示す指標で、-1から1の値をとるものは？', answer: 'ピアソンの積率相関係数', explanation: '1に近いほど強い正の相関、-1に近いほど強い負の相関を示します。' },
+  { id: 'st-4', genre: '統計検定2級', question: '母集団から抽出されたサンプルの平均値の分散は、サンプルサイズ(n)が大きくなるにつれてどうなるか？', answer: '小さくなる', explanation: '標本平均の分散は σ² / n となるため、サンプルサイズが大きいほど分散は小さくなります。' },
+  { id: 'st-5', genre: '統計検定2級', question: '質的データ（カテゴリデータ）の独立性の検定によく用いられる確率分布は？', answer: 'カイ二乗分布', explanation: 'クロス集計表において、観測度数と期待度数のズレを計算し、カイ二乗分布を用いて検定します。' },
 ];
 
+function shuffleArray<T>(array: T[]): T[] {
+  const newArr = [...array];
+  for (let i = newArr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+  }
+  return newArr;
+}
+
 export default function App() {
-  // --- 状態管理 ---
   const [screen, setScreen] = useState<ScreenType>('title');
   const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
   const [playMode, setPlayMode] = useState<PlayMode>('all');
+  const [isShuffle, setIsShuffle] = useState(false);
   
-  // 学習中の状態
+  const [targetQuestions, setTargetQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
   
-  // ブックマークの状態（LocalStorageと同期）
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
-  // マウント時にlocalStorageからブックマークを読み込む
+  // LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('quiz_bookmarks');
+    const saved = localStorage.getItem('quiz_bookmarks_v3');
     if (saved) {
-      try {
-        setBookmarks(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse bookmarks", e);
-      }
+      try { setBookmarks(JSON.parse(saved)); } catch (e) { console.error(e); }
     }
     setIsMounted(true);
   }, []);
 
-  // ブックマークが変更されたらlocalStorageに保存
   useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem('quiz_bookmarks', JSON.stringify(bookmarks));
-    }
+    if (isMounted) localStorage.setItem('quiz_bookmarks_v3', JSON.stringify(bookmarks));
   }, [bookmarks, isMounted]);
 
-  // --- 派生状態（Memo） ---
   const genres = useMemo(() => Array.from(new Set(quizData.map(q => q.genre))), []);
 
-  // 選択されたジャンルとモードに応じた問題リスト
-  const targetQuestions = useMemo(() => {
-    if (!selectedGenre) return [];
-    const byGenre = quizData.filter(q => q.genre === selectedGenre);
-    if (playMode === 'bookmark') {
-      return byGenre.filter(q => bookmarks.includes(q.id));
-    }
-    return byGenre;
-  }, [selectedGenre, playMode, bookmarks]);
-
-  // --- アクション ---
-  const handleToggleBookmark = (id: string) => {
-    setBookmarks(prev => {
-      if (prev.includes(id)) {
-        return prev.filter(bId => bId !== id);
-      } else {
-        return [...prev, id];
-      }
-    });
-  };
+  // Actions
+  const handleToggleBookmark = useCallback((id: string) => {
+    setBookmarks(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]);
+  }, []);
 
   const handleStartQuiz = (genre: Genre, mode: PlayMode) => {
+    let questions = quizData.filter(q => q.genre === genre);
+    if (mode === 'bookmark') {
+      questions = questions.filter(q => bookmarks.includes(q.id));
+    }
+    if (isShuffle) {
+      questions = shuffleArray(questions);
+    }
+    setTargetQuestions(questions);
     setSelectedGenre(genre);
     setPlayMode(mode);
     setCurrentQuestionIndex(0);
@@ -154,87 +84,141 @@ export default function App() {
     setScreen('quiz');
   };
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentQuestionIndex + 1 < targetQuestions.length) {
-      setCurrentQuestionIndex(prev => prev + 1);
       setIsAnswerRevealed(false);
+      // Wait for flip animation before changing question content
+      setTimeout(() => setCurrentQuestionIndex(prev => prev + 1), 150);
     } else {
       setScreen('result');
     }
-  };
+  }, [currentQuestionIndex, targetQuestions.length]);
 
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
       setIsAnswerRevealed(false);
+      setTimeout(() => setCurrentQuestionIndex(prev => prev - 1), 150);
     }
-  };
+  }, [currentQuestionIndex]);
 
   const handleRestart = () => {
     setScreen('title');
     setSelectedGenre(null);
+    setTargetQuestions([]);
   };
 
-  // 描画が完了するまで（LocalStorage読み込み前）は何も表示しない
-  if (!isMounted) return <div className="min-h-screen bg-slate-900" />;
+  const handleLearned = useCallback(() => {
+    const currentId = targetQuestions[currentQuestionIndex].id;
+    if (bookmarks.includes(currentId)) {
+      handleToggleBookmark(currentId);
+    }
+    handleNext();
+  }, [bookmarks, currentQuestionIndex, targetQuestions, handleNext, handleToggleBookmark]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    if (screen !== 'quiz') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent default scrolling for Space
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsAnswerRevealed(prev => !prev);
+      } else if (e.code === 'ArrowRight') {
+        handleNext();
+      } else if (e.code === 'ArrowLeft') {
+        handlePrev();
+      } else if (e.code === 'Escape') {
+        handleRestart();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [screen, handleNext, handlePrev]);
+
+  if (!isMounted) return <div className="min-h-screen bg-slate-950" />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-slate-200 flex items-center justify-center p-4 sm:p-6 font-sans antialiased">
-      <div className="max-w-3xl w-full bg-slate-800/60 backdrop-blur-xl rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-slate-700 p-6 sm:p-10 transition-all duration-300">
-        
+    <div className="min-h-screen bg-mesh text-slate-200 flex items-center justify-center p-4 sm:p-6 font-sans antialiased selection:bg-indigo-500/30">
+      
+      <div className="max-w-4xl w-full">
         {/* ==============================
             トップ画面 
             ============================== */}
         {screen === 'title' && (
-          <div className="animate-fade-in">
-            <div className="text-center mb-12">
-              <span className="inline-block px-4 py-1.5 rounded-full bg-indigo-500/10 text-indigo-400 text-sm font-bold tracking-widest mb-6 border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
-                FLASHCARD APP
-              </span>
-              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-300">
-                学習フラッシュカード
+          <div className="animate-fade-in space-y-12 py-8">
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center p-3 mb-2 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl">
+                <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <h1 className="text-5xl sm:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-500 drop-shadow-sm">
+                Flashcard Studio
               </h1>
-              <p className="text-slate-400">暗記カード形式で、知識を定着させましょう。</p>
+              <p className="text-slate-400 text-lg font-medium tracking-wide">スタイリッシュに、効率的に学ぶ。</p>
             </div>
 
-            <div className="space-y-8">
+            {/* 設定エリア */}
+            <div className="flex justify-center">
+              <label className="flex items-center space-x-3 cursor-pointer group bg-white/5 px-6 py-3 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={isShuffle} onChange={() => setIsShuffle(!isShuffle)} />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${isShuffle ? 'bg-indigo-500' : 'bg-slate-700'}`}></div>
+                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isShuffle ? 'translate-x-4' : ''}`}></div>
+                </div>
+                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">
+                  出題順をシャッフルする
+                </span>
+              </label>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
               {genres.map(genre => {
                 const totalCount = quizData.filter(q => q.genre === genre).length;
                 const bookmarkCount = quizData.filter(q => q.genre === genre && bookmarks.includes(q.id)).length;
 
                 return (
-                  <div key={genre} className="bg-slate-700/30 border border-slate-600/50 rounded-2xl p-6 transition-all hover:bg-slate-700/40">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-2">
-                      <h2 className="text-2xl font-bold text-white">{genre}</h2>
-                      <div className="text-sm text-slate-400 font-medium bg-slate-800/80 px-3 py-1 rounded-full">
-                        全 {totalCount} 問 <span className="mx-2 text-slate-600">|</span> <span className="text-amber-400">★</span> {bookmarkCount} 問
+                  <div key={genre} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl hover:bg-white/10 transition-all duration-300 group">
+                    <div className="flex justify-between items-start mb-8">
+                      <h2 className="text-3xl font-extrabold text-white tracking-tight">{genre}</h2>
+                      <div className="flex items-center space-x-3 text-sm font-bold bg-black/20 px-4 py-2 rounded-2xl border border-white/5">
+                        <span className="text-slate-300">全 {totalCount}</span>
+                        <span className="text-slate-600">|</span>
+                        <span className="text-amber-400 flex items-center gap-1"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg> {bookmarkCount}</span>
                       </div>
                     </div>
                     
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       <button
                         onClick={() => handleStartQuiz(genre, 'all')}
-                        className="flex flex-col items-center justify-center p-5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 rounded-xl transition-all shadow-lg shadow-indigo-900/50 group border border-indigo-400/30 transform hover:-translate-y-1"
+                        className="w-full flex items-center justify-between p-5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-2xl transition-all shadow-lg shadow-indigo-500/25 active:scale-[0.98]"
                       >
-                        <span className="font-bold text-white text-lg mb-1">全問演習</span>
-                        <span className="text-indigo-200 text-sm font-medium">すべての問題を学習する</span>
+                        <div className="text-left">
+                          <span className="block font-bold text-white text-xl mb-1">全問演習</span>
+                          <span className="block text-indigo-100 text-sm font-medium">基礎からすべて学習する</span>
+                        </div>
+                        <svg className="w-6 h-6 text-white opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </button>
 
                       <button
                         onClick={() => handleStartQuiz(genre, 'bookmark')}
                         disabled={bookmarkCount === 0}
-                        className={`flex flex-col items-center justify-center p-5 rounded-xl transition-all border transform ${
+                        className={`w-full flex items-center justify-between p-5 rounded-2xl transition-all border active:scale-[0.98] ${
                           bookmarkCount > 0 
-                            ? "bg-slate-700/80 hover:bg-slate-600 text-white border-slate-500 hover:border-slate-400 shadow-lg hover:-translate-y-1" 
-                            : "bg-slate-800/30 text-slate-500 cursor-not-allowed border-slate-700/50"
+                            ? "bg-white/5 hover:bg-white/10 text-white border-white/20 shadow-xl" 
+                            : "bg-black/10 text-slate-600 cursor-not-allowed border-transparent"
                         }`}
                       >
-                        <span className="font-bold text-lg mb-1 flex items-center">
-                          <span className={`${bookmarkCount > 0 ? 'text-amber-400' : 'text-slate-600'} mr-2 text-xl`}>★</span>ブックマーク演習
-                        </span>
-                        <span className={bookmarkCount > 0 ? "text-slate-300 text-sm font-medium" : "text-slate-600 text-sm font-medium"}>
-                          {bookmarkCount > 0 ? "チェックした問題だけ" : "ブックマークがありません"}
-                        </span>
+                        <div className="text-left">
+                          <span className="block font-bold text-lg mb-1 flex items-center">
+                            <svg className={`w-5 h-5 mr-2 ${bookmarkCount > 0 ? 'text-amber-400' : 'text-slate-600'}`} fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                            ブックマーク演習
+                          </span>
+                          <span className={bookmarkCount > 0 ? "block text-slate-400 text-sm font-medium" : "block text-slate-600 text-sm font-medium"}>
+                            {bookmarkCount > 0 ? "要チェックの問題を復習" : "ブックマークがありません"}
+                          </span>
+                        </div>
+                        <svg className={`w-6 h-6 opacity-50 ${bookmarkCount > 0 ? 'text-white' : 'hidden'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </button>
                     </div>
                   </div>
@@ -248,94 +232,135 @@ export default function App() {
             学習（問題）画面 
             ============================== */}
         {screen === 'quiz' && (
-          <div className="animate-fade-in flex flex-col min-h-[500px]">
+          <div className="animate-fade-in flex flex-col h-[85vh] max-h-[800px]">
             {/* ヘッダー */}
-            <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-700/50">
-              <div className="flex items-center flex-wrap gap-2">
-                <span className="text-xs font-bold tracking-wider text-slate-300 bg-slate-700/80 px-3 py-1.5 rounded-lg border border-slate-600">
-                  {selectedGenre}
-                </span>
-                <span className="text-sm font-bold text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20">
-                  {playMode === 'bookmark' ? '★ ブックマーク演習' : '全問演習'}
-                </span>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <button 
+                  onClick={handleRestart}
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-slate-400 transition-all group"
+                  title="トップへ戻る (Esc)"
+                >
+                  <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold tracking-widest text-slate-300 bg-white/10 px-4 py-1.5 rounded-full border border-white/10 shadow-sm">
+                    {selectedGenre}
+                  </span>
+                  {playMode === 'bookmark' && (
+                    <span className="text-xs font-bold text-amber-900 bg-amber-400 px-3 py-1.5 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.3)]">
+                      ★ 復習
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="text-sm font-bold text-slate-400 bg-slate-900/50 px-4 py-1.5 rounded-full border border-slate-700">
-                <span className="text-indigo-400 text-base mr-1">{currentQuestionIndex + 1}</span> / {targetQuestions.length}
+              
+              <div className="flex items-center gap-4">
+                <div className="hidden sm:flex text-xs font-mono text-slate-500 gap-3 mr-4">
+                  <span>[Space] めくる</span>
+                  <span>[←/→] 移動</span>
+                </div>
+                <div className="text-base font-black text-slate-300 bg-black/30 px-5 py-2 rounded-full border border-white/10 font-mono tracking-wider shadow-inner">
+                  <span className="text-indigo-400 text-xl">{currentQuestionIndex + 1}</span> / {targetQuestions.length}
+                </div>
               </div>
             </div>
             
-            {/* 問題カードエリア */}
-            <div className="flex-grow flex flex-col items-center justify-center mb-8 relative">
-              <div className="w-full text-center mb-10">
-                <h3 className="text-2xl sm:text-3xl leading-relaxed font-semibold text-white tracking-wide">
-                  {targetQuestions[currentQuestionIndex]?.question}
-                </h3>
-              </div>
+            {/* 3Dカードエリア */}
+            <div className="flex-grow flex items-center justify-center relative perspective-1000 mb-8 z-10 cursor-pointer" onClick={() => setIsAnswerRevealed(!isAnswerRevealed)}>
+              <div className={`w-full h-full max-h-[500px] relative transition-transform duration-700 transform-style-3d ${isAnswerRevealed ? 'rotate-y-180' : ''}`}>
+                
+                {/* 表面 (Question) */}
+                <div className="absolute inset-0 backface-hidden bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 sm:p-12 shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex flex-col items-center justify-center text-center group overflow-y-auto">
+                  <span className="absolute top-6 left-6 text-sm font-black tracking-widest text-indigo-400/50 uppercase">Question</span>
+                  <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight">
+                    {targetQuestions[currentQuestionIndex]?.question}
+                  </h3>
+                  <div className="absolute bottom-6 opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-indigo-300 text-sm font-bold gap-2 bg-black/20 px-4 py-2 rounded-full">
+                    <svg className="w-5 h-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+                    タップ または Space で解答を見る
+                  </div>
+                </div>
 
-              {/* 解答エリア（トグル） */}
-              <div className="w-full">
-                {!isAnswerRevealed ? (
-                  <button
-                    onClick={() => setIsAnswerRevealed(true)}
-                    className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-600 text-slate-400 hover:text-indigo-300 hover:border-indigo-400 hover:bg-indigo-500/10 transition-all font-bold text-xl tracking-wider shadow-sm group"
-                  >
-                    <span className="group-hover:scale-105 inline-block transition-transform duration-300">
-                      タップして解答を見る
-                    </span>
-                  </button>
-                ) : (
-                  <div className="w-full animate-fade-in">
-                    <div className="bg-slate-700/40 border border-slate-500/50 rounded-2xl p-6 sm:p-8 mb-6 relative overflow-hidden shadow-xl">
-                      <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-400 to-cyan-400"></div>
-                      <span className="inline-block px-3 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-bold tracking-widest uppercase mb-4 rounded-md border border-indigo-500/30">
-                        Answer
-                      </span>
-                      <p className="text-2xl sm:text-3xl font-bold text-white mb-8 border-b border-slate-600/50 pb-6">
-                        {targetQuestions[currentQuestionIndex]?.answer}
+                {/* 裏面 (Answer) */}
+                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800/90 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-8 sm:p-12 shadow-[0_20px_50px_rgba(99,102,241,0.2)] flex flex-col group overflow-y-auto">
+                  <div className="flex justify-between items-center mb-6 shrink-0">
+                    <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">Answer</span>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setIsAnswerRevealed(false); }}
+                      className="text-sm font-bold text-slate-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-white/10"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                      問題へ戻る
+                    </button>
+                  </div>
+                  
+                  <div className="flex-grow flex flex-col justify-center">
+                    <p className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 mb-8 pb-8 border-b border-white/10 leading-snug text-center">
+                      {targetQuestions[currentQuestionIndex]?.answer}
+                    </p>
+                    
+                    <div className="bg-black/30 rounded-2xl p-6 border border-white/5 relative">
+                      <span className="absolute -top-3 left-6 text-xs font-black tracking-widest text-slate-400 uppercase bg-[#0f172a] px-2">解説</span>
+                      <p className="text-slate-300 leading-relaxed sm:text-lg">
+                        {targetQuestions[currentQuestionIndex]?.explanation}
                       </p>
-                      
-                      <div className="bg-slate-800/80 rounded-xl p-6 border border-slate-700">
-                        <span className="block text-xs font-bold tracking-widest text-slate-400 uppercase mb-3">解説</span>
-                        <p className="text-slate-300 leading-relaxed text-sm sm:text-base">
-                          {targetQuestions[currentQuestionIndex]?.explanation}
-                        </p>
-                      </div>
                     </div>
                   </div>
-                )}
+                </div>
+
               </div>
             </div>
 
             {/* フッター（アクション） */}
-            <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-700/50 gap-2">
+            <div className="flex items-center justify-between gap-3 sm:gap-4 shrink-0">
               <button
                 onClick={handlePrev}
                 disabled={currentQuestionIndex === 0}
-                className="px-4 sm:px-6 py-3.5 rounded-xl font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-700 text-slate-300 border border-transparent hover:border-slate-600"
+                className="w-14 h-14 sm:w-auto sm:px-6 sm:py-4 flex items-center justify-center rounded-2xl font-bold transition-all disabled:opacity-20 disabled:cursor-not-allowed bg-white/5 hover:bg-white/10 text-white border border-white/10 shadow-lg active:scale-95"
+                title="前の問題 (←)"
               >
-                ← <span className="hidden sm:inline">戻る</span>
+                <svg className="w-6 h-6 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                <span className="hidden sm:inline text-lg">戻る</span>
               </button>
 
-              <button
-                onClick={() => handleToggleBookmark(targetQuestions[currentQuestionIndex].id)}
-                className={`flex-1 max-w-[200px] flex items-center justify-center px-4 py-3.5 rounded-xl font-bold transition-all border ${
-                  bookmarks.includes(targetQuestions[currentQuestionIndex]?.id)
-                    ? 'bg-amber-500/10 border-amber-500/50 text-amber-400 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
-                    : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                }`}
-              >
-                <span className="mr-2 text-xl">{bookmarks.includes(targetQuestions[currentQuestionIndex]?.id) ? '★' : '☆'}</span>
-                <span className="text-sm sm:text-base">{bookmarks.includes(targetQuestions[currentQuestionIndex]?.id) ? 'ブックマーク中' : 'ブックマーク'}</span>
-              </button>
+              <div className="flex-1 flex justify-center gap-3">
+                <button
+                  onClick={() => handleToggleBookmark(targetQuestions[currentQuestionIndex].id)}
+                  className={`flex-1 max-w-[220px] flex items-center justify-center px-4 py-4 rounded-2xl font-bold transition-all border active:scale-95 ${
+                    bookmarks.includes(targetQuestions[currentQuestionIndex]?.id)
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.2)]'
+                      : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white hover:border-white/20'
+                  }`}
+                >
+                  <svg className={`w-6 h-6 mr-2 ${bookmarks.includes(targetQuestions[currentQuestionIndex]?.id) ? 'text-amber-400 fill-current' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+                  <span className="text-sm sm:text-base tracking-wide">{bookmarks.includes(targetQuestions[currentQuestionIndex]?.id) ? 'ブックマーク中' : 'ブックマーク'}</span>
+                </button>
+
+                {/* ブックマーク演習のときだけ「覚えた」ボタンを表示 */}
+                {playMode === 'bookmark' && (
+                  <button
+                    onClick={handleLearned}
+                    className="flex-1 max-w-[160px] flex items-center justify-center px-4 py-4 rounded-2xl font-bold transition-all border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                  >
+                    <svg className="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    覚えた！
+                  </button>
+                )}
+              </div>
 
               <button
                 onClick={handleNext}
-                className="px-4 sm:px-8 py-3.5 rounded-xl font-bold transition-all bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/50 border border-indigo-500 hover:-translate-y-0.5"
+                className="w-14 h-14 sm:w-auto sm:px-8 sm:py-4 flex items-center justify-center rounded-2xl font-bold transition-all bg-indigo-500 hover:bg-indigo-400 text-white shadow-[0_10px_20px_rgba(99,102,241,0.4)] border border-indigo-400/50 active:scale-95 group"
+                title="次の問題 (→)"
               >
                 {currentQuestionIndex + 1 < targetQuestions.length ? (
-                  <><span className="hidden sm:inline">次へ</span> →</>
+                  <>
+                    <span className="hidden sm:inline text-lg mr-2 tracking-wide">次へ</span>
+                    <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </>
                 ) : (
-                  '完了 ✓'
+                  <span className="text-lg tracking-widest px-2">完了</span>
                 )}
               </button>
             </div>
@@ -346,27 +371,27 @@ export default function App() {
             結果画面 
             ============================== */}
         {screen === 'result' && (
-          <div className="text-center animate-fade-in py-12">
-            <div className="mb-8">
-              <span className="inline-block px-5 py-2 rounded-full bg-cyan-500/10 text-cyan-400 text-sm font-bold tracking-widest border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
-                COMPLETED
+          <div className="text-center animate-fade-in py-16 px-4 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl">
+            <div className="mb-10 relative inline-block">
+              <div className="absolute inset-0 bg-cyan-400/20 blur-2xl rounded-full"></div>
+              <span className="relative inline-flex items-center justify-center w-20 h-20 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-400/30 shadow-[0_0_30px_rgba(6,182,212,0.3)]">
+                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
               </span>
             </div>
-            <h2 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-indigo-400">
-              学習お疲れ様でした！
+            
+            <h2 className="text-5xl sm:text-6xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-br from-white to-cyan-300 drop-shadow-sm tracking-tight">
+              Awesome!
             </h2>
             
-            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 sm:p-8 max-w-lg mx-auto mb-12">
-              <p className="text-lg text-slate-300 leading-relaxed">
-                {playMode === 'all' 
-                  ? 'すべての問題に目を通しました。わからなかった問題はブックマークして、復習モードで重点的に対策しましょう。' 
-                  : 'ブックマークした問題の復習が完了しました。覚えた問題はブックマークを解除してリストを整理しましょう。'}
-              </p>
-            </div>
+            <p className="text-xl text-slate-300 mb-12 max-w-lg mx-auto leading-relaxed font-medium">
+              {playMode === 'all' 
+                ? 'セッションが完了しました。わからなかった問題はブックマークから重点的に復習しましょう。' 
+                : 'ブックマークの復習が完了しました！確実に知識が定着してきています。'}
+            </p>
 
             <button
               onClick={handleRestart}
-              className="inline-flex items-center justify-center px-10 py-4 font-bold text-white transition-all bg-slate-700 border border-slate-600 rounded-xl hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-lg transform hover:-translate-y-1 hover:border-slate-500"
+              className="inline-flex items-center justify-center px-12 py-5 font-bold text-white text-lg transition-all bg-white/10 border border-white/20 rounded-2xl hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/10 shadow-2xl active:scale-95 backdrop-blur-md"
             >
               トップへ戻る
             </button>

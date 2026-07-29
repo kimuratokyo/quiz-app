@@ -49,6 +49,8 @@ export default function App() {
   const [flipCount, setFlipCount] = useState(0);
   const isAnswerRevealed = flipCount % 2 !== 0;
   
+  const [exitAnim, setExitAnim] = useState<'left' | 'right' | null>(null);
+  
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -130,8 +132,22 @@ export default function App() {
     if (bookmarks.includes(currentId)) {
       handleToggleBookmark(currentId);
     }
-    handleNext();
-  }, [bookmarks, currentQuestionIndex, targetQuestions, handleNext, handleToggleBookmark]);
+    triggerNext('right');
+  }, [bookmarks, currentQuestionIndex, targetQuestions, handleToggleBookmark]);
+
+  const triggerNext = (direction: 'left' | 'right', doBookmark: boolean = false) => {
+    setExitAnim(direction);
+    setTimeout(() => {
+      if (doBookmark) {
+        const currentId = targetQuestions[currentQuestionIndex]?.id;
+        if (currentId && !bookmarks.includes(currentId)) {
+          handleToggleBookmark(currentId);
+        }
+      }
+      handleNext();
+      setExitAnim(null);
+    }, 300);
+  };
 
   // Pointer Event Handlers (Unifies Touch and Mouse, fixes mobile double-fire bug)
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -169,14 +185,10 @@ export default function App() {
       const SWIPE_THRESHOLD = 80;
       if (swipeX > SWIPE_THRESHOLD) {
         // 右スワイプ: 次へ
-        handleNext();
+        triggerNext('right');
       } else if (swipeX < -SWIPE_THRESHOLD) {
         // 左スワイプ: ブックマークして次へ
-        const currentId = targetQuestions[currentQuestionIndex]?.id;
-        if (currentId && !bookmarks.includes(currentId)) {
-          handleToggleBookmark(currentId);
-        }
-        handleNext();
+        triggerNext('left', true);
       }
     }
     
@@ -200,7 +212,7 @@ export default function App() {
         e.preventDefault();
         setFlipCount(prev => prev + 1);
       } else if (e.code === 'ArrowRight') {
-        handleNext();
+        triggerNext('right');
       } else if (e.code === 'ArrowLeft') {
         handlePrev();
       } else if (e.code === 'Escape') {
@@ -214,11 +226,20 @@ export default function App() {
   if (!isMounted) return <div className="min-h-screen bg-slate-950" />;
 
   // Dynamic Styles
+  let exitTransform = '';
+  if (exitAnim === 'right') {
+    exitTransform = `translateX(150vw) rotate(30deg)`;
+  } else if (exitAnim === 'left') {
+    exitTransform = `translateX(-150vw) rotate(-30deg)`;
+  }
+
   const cardTransformStyle = {
-    transform: isDragging 
-      ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg) rotateY(${flipCount * 180}deg)`
-      : `rotateY(${isAnimEnabled ? flipCount * 180 : (isAnswerRevealed ? 180 : 0)}deg)`,
-    transition: isDragging || !isAnimEnabled ? 'none' : 'transform 0.5s ease-out'
+    transform: exitAnim 
+      ? exitTransform
+      : isDragging 
+        ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg) rotateY(${flipCount * 180}deg)`
+        : `rotateY(${isAnimEnabled ? flipCount * 180 : (isAnswerRevealed ? 180 : 0)}deg)`,
+    transition: isDragging ? 'none' : (!isAnimEnabled && !exitAnim ? 'none' : 'transform 0.3s ease-in-out')
   };
 
   // Watermarks Opacity
@@ -370,7 +391,7 @@ export default function App() {
               
               {/* 次の問題のカード（背景用） */}
               {currentQuestionIndex + 1 < targetQuestions.length && (
-                <div className="absolute w-full h-full max-h-[500px] bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-8 sm:p-12 shadow-sm scale-95 opacity-50 translate-y-4 pointer-events-none z-0 flex flex-col items-center justify-center text-center">
+                <div className="absolute w-full h-full max-h-[500px] bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-sm scale-95 translate-y-4 pointer-events-none z-0 flex flex-col items-center justify-center text-center">
                   <span className="absolute top-6 left-6 text-sm font-black tracking-widest text-indigo-400/30 uppercase">Next</span>
                   <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white/50 tracking-tight">
                     {targetQuestions[currentQuestionIndex + 1]?.question}
@@ -390,7 +411,7 @@ export default function App() {
               >
                 
                 {/* 表面 (Question) */}
-                <div className="absolute inset-0 backface-hidden bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 sm:p-12 shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex flex-col items-center justify-center text-center group overflow-hidden">
+                <div className="absolute inset-0 backface-hidden bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col items-center justify-center text-center group overflow-hidden">
                   
                   {/* 透かし (Watermarks) */}
                   <div className="absolute top-1/2 left-8 -translate-y-1/2 border-4 border-indigo-400 text-indigo-400 font-black text-3xl sm:text-4xl rounded-2xl px-6 py-2 transform -rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: nextOpacity }}>
@@ -414,7 +435,7 @@ export default function App() {
                 </div>
 
                 {/* 裏面 (Answer) */}
-                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800/90 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-8 sm:p-12 shadow-[0_20px_50px_rgba(99,102,241,0.2)] flex flex-col group overflow-hidden">
+                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800 border border-indigo-500/50 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
                   
                   <div className="absolute top-1/2 left-8 -translate-y-1/2 border-4 border-indigo-400 text-indigo-400 font-black text-4xl rounded-2xl px-6 py-2 transform -rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: bookmarkOpacity }}>
                     次へ
@@ -426,8 +447,7 @@ export default function App() {
                   <div className="flex justify-between items-center mb-6 shrink-0 z-10 relative">
                     <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">Answer</span>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); setFlipCount(prev => prev + 1); }}
-                      className="text-sm font-bold text-slate-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-white/10"
+                      className="text-sm font-bold text-slate-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-white/10 pointer-events-none"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
                       問題へ戻る
@@ -489,7 +509,7 @@ export default function App() {
               </div>
 
               <button
-                onClick={handleNext}
+                onClick={() => triggerNext('right')}
                 className="w-14 h-14 sm:w-auto sm:px-8 sm:py-4 flex items-center justify-center rounded-2xl font-bold transition-all bg-indigo-500 hover:bg-indigo-400 text-white shadow-[0_10px_20px_rgba(99,102,241,0.4)] border border-indigo-400/50 active:scale-95"
                 title="次の問題 (→)"
               >

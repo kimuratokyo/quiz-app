@@ -47,7 +47,6 @@ export default function App() {
   const [targetQuestions, setTargetQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [flipCount, setFlipCount] = useState(0);
-  const isAnswerRevealed = flipCount % 2 !== 0;
   
   const [exitAnim, setExitAnim] = useState<'left' | 'right' | null>(null);
   
@@ -233,15 +232,13 @@ export default function App() {
     exitTransform = `translateX(-150vw) rotate(-30deg)`;
   }
 
-  const targetRotation = isAnswerRevealed ? 180 : 0;
-
   const cardTransformStyle = {
     transform: exitAnim 
       ? exitTransform
       : isDragging 
-        ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg) rotateY(${targetRotation}deg)`
-        : `rotateY(${targetRotation}deg)`,
-    transition: isDragging ? 'none' : (!isAnimEnabled && !exitAnim ? 'none' : 'transform 0.4s ease-out')
+        ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg) rotateY(${flipCount * 180}deg)`
+        : `rotateY(${isAnimEnabled ? flipCount * 180 : (flipCount % 2 !== 0 ? 180 : 0)}deg)`,
+    transition: isDragging ? 'none' : (!isAnimEnabled && !exitAnim ? 'none' : 'transform 0.5s ease-out')
   };
 
   // Watermarks Opacity
@@ -439,11 +436,11 @@ export default function App() {
                 {/* 裏面 (Answer) */}
                 <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800 border border-indigo-500/50 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
                   
-                  <div className="absolute top-1/2 left-8 -translate-y-1/2 border-4 border-indigo-400 text-indigo-400 font-black text-4xl rounded-2xl px-6 py-2 transform -rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: bookmarkOpacity }}>
-                    次へ
-                  </div>
-                  <div className="absolute top-1/2 right-8 -translate-y-1/2 border-4 border-amber-400 text-amber-400 font-black text-2xl sm:text-4xl rounded-2xl px-4 py-2 transform rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: nextOpacity }}>
+                  <div className="absolute top-1/2 left-8 -translate-y-1/2 border-4 border-amber-400 text-amber-400 font-black text-2xl sm:text-4xl rounded-2xl px-4 py-2 transform -rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: bookmarkOpacity }}>
                     ★ ブックマーク
+                  </div>
+                  <div className="absolute top-1/2 right-8 -translate-y-1/2 border-4 border-indigo-400 text-indigo-400 font-black text-4xl rounded-2xl px-6 py-2 transform rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: nextOpacity }}>
+                    次へ
                   </div>
 
                   <div className="flex justify-between items-center mb-6 shrink-0 z-10 relative">

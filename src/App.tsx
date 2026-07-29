@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
 // --- 型定義 ---
 type Genre = '応用情報' | '統計検定2級';
@@ -39,7 +39,10 @@ export default function App() {
   const [screen, setScreen] = useState<ScreenType>('title');
   const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
   const [playMode, setPlayMode] = useState<PlayMode>('all');
+  
+  // 設定
   const [isShuffle, setIsShuffle] = useState(false);
+  const [isAnimEnabled, setIsAnimEnabled] = useState(true);
   
   const [targetQuestions, setTargetQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -48,18 +51,33 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
-  // LocalStorage
+  // Touch Handling State
+  const [swipeX, setSwipeX] = useState(0);
+  const [swipeY, setSwipeY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartRef = useRef<{ x: number, y: number, time: number } | null>(null);
+
+  // LocalStorage Loading
   useEffect(() => {
-    const saved = localStorage.getItem('quiz_bookmarks_v3');
-    if (saved) {
-      try { setBookmarks(JSON.parse(saved)); } catch (e) { console.error(e); }
+    const savedBookmarks = localStorage.getItem('quiz_bookmarks_v3');
+    if (savedBookmarks) {
+      try { setBookmarks(JSON.parse(savedBookmarks)); } catch (e) { console.error(e); }
+    }
+    
+    const savedAnim = localStorage.getItem('quiz_anim_enabled');
+    if (savedAnim !== null) {
+      setIsAnimEnabled(savedAnim === 'true');
     }
     setIsMounted(true);
   }, []);
 
+  // LocalStorage Saving
   useEffect(() => {
-    if (isMounted) localStorage.setItem('quiz_bookmarks_v3', JSON.stringify(bookmarks));
-  }, [bookmarks, isMounted]);
+    if (isMounted) {
+      localStorage.setItem('quiz_bookmarks_v3', JSON.stringify(bookmarks));
+      localStorage.setItem('quiz_anim_enabled', String(isAnimEnabled));
+    }
+  }, [bookmarks, isAnimEnabled, isMounted]);
 
   const genres = useMemo(() => Array.from(new Set(quizData.map(q => q.genre))), []);
 
@@ -87,19 +105,27 @@ export default function App() {
   const handleNext = useCallback(() => {
     if (currentQuestionIndex + 1 < targetQuestions.length) {
       setIsAnswerRevealed(false);
-      // Wait for flip animation before changing question content
-      setTimeout(() => setCurrentQuestionIndex(prev => prev + 1), 150);
+      // アニメーションOFFなら即時反映、ONならフリップを待つ
+      if (isAnimEnabled) {
+        setTimeout(() => setCurrentQuestionIndex(prev => prev + 1), 150);
+      } else {
+        setCurrentQuestionIndex(prev => prev + 1);
+      }
     } else {
       setScreen('result');
     }
-  }, [currentQuestionIndex, targetQuestions.length]);
+  }, [currentQuestionIndex, targetQuestions.length, isAnimEnabled]);
 
   const handlePrev = useCallback(() => {
     if (currentQuestionIndex > 0) {
       setIsAnswerRevealed(false);
-      setTimeout(() => setCurrentQuestionIndex(prev => prev - 1), 150);
+      if (isAnimEnabled) {
+        setTimeout(() => setCurrentQuestionIndex(prev => prev - 1), 150);
+      } else {
+        setCurrentQuestionIndex(prev => prev - 1);
+      }
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, isAnimEnabled]);
 
   const handleRestart = () => {
     setScreen('title');
@@ -115,11 +141,64 @@ export default function App() {
     handleNext();
   }, [bookmarks, currentQuestionIndex, targetQuestions, handleNext, handleToggleBookmark]);
 
+  // Touch Event Handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      time: Date.now()
+    };
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const deltaX = e.touches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.touches[0].clientY - touchStartRef.current.y;
+    // 上下スクロールと競合しないよう、横スワイプがある程度大きい場合のみpreventDefaultするなどの考慮が必要だが、
+    // 全画面アプリとしてpreventDefaultしてしまう（あるいはCSSのtouch-actionで制限する）
+    setSwipeX(deltaX);
+    setSwipeY(deltaY);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartRef.current) {
+      setIsDragging(false);
+      return;
+    }
+    
+    const timeDelta = Date.now() - touchStartRef.current.time;
+    // 小さい動きかつ短時間は「タップ」と判定
+    const isTap = Math.abs(swipeX) < 15 && Math.abs(swipeY) < 15 && timeDelta < 500;
+    
+    if (isTap) {
+      setIsAnswerRevealed(!isAnswerRevealed);
+    } else {
+      const SWIPE_THRESHOLD = 80;
+      if (swipeX > SWIPE_THRESHOLD) {
+        // 右スワイプ: 次へ
+        handleNext();
+      } else if (swipeX < -SWIPE_THRESHOLD) {
+        // 左スワイプ: ブックマークして次へ
+        const currentId = targetQuestions[currentQuestionIndex]?.id;
+        if (currentId && !bookmarks.includes(currentId)) {
+          handleToggleBookmark(currentId);
+        }
+        handleNext();
+      }
+    }
+    
+    setIsDragging(false);
+    setSwipeX(0);
+    setSwipeY(0);
+    touchStartRef.current = null;
+  };
+
+
   // Keyboard Shortcuts
   useEffect(() => {
     if (screen !== 'quiz') return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent default scrolling for Space
       if (e.code === 'Space') {
         e.preventDefault();
         setIsAnswerRevealed(prev => !prev);
@@ -137,8 +216,21 @@ export default function App() {
 
   if (!isMounted) return <div className="min-h-screen bg-slate-950" />;
 
+  // Dynamic Styles
+  const flipDurationClass = isAnimEnabled ? 'transition-transform duration-700' : 'transition-none';
+  const cardTransformStyle = isDragging ? {
+    transform: `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg)`,
+    transition: 'none'
+  } : {
+    transition: 'transform 0.3s ease-out'
+  };
+
+  // Watermarks Opacity
+  const nextOpacity = Math.min(Math.max(swipeX / 100, 0), 1);
+  const bookmarkOpacity = Math.min(Math.max(-swipeX / 100, 0), 1);
+
   return (
-    <div className="min-h-screen bg-mesh text-slate-200 flex items-center justify-center p-4 sm:p-6 font-sans antialiased selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-mesh text-slate-200 flex items-center justify-center p-4 sm:p-6 font-sans antialiased selection:bg-indigo-500/30 overflow-hidden">
       
       <div className="max-w-4xl w-full">
         {/* ==============================
@@ -159,15 +251,26 @@ export default function App() {
             </div>
 
             {/* 設定エリア */}
-            <div className="flex justify-center">
-              <label className="flex items-center space-x-3 cursor-pointer group bg-white/5 px-6 py-3 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+              <label className="flex items-center space-x-3 cursor-pointer group bg-white/5 px-5 py-3 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
                 <div className="relative">
                   <input type="checkbox" className="sr-only" checked={isShuffle} onChange={() => setIsShuffle(!isShuffle)} />
                   <div className={`block w-10 h-6 rounded-full transition-colors ${isShuffle ? 'bg-indigo-500' : 'bg-slate-700'}`}></div>
                   <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isShuffle ? 'translate-x-4' : ''}`}></div>
                 </div>
                 <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">
-                  出題順をシャッフルする
+                  出題順をシャッフル
+                </span>
+              </label>
+
+              <label className="flex items-center space-x-3 cursor-pointer group bg-white/5 px-5 py-3 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={isAnimEnabled} onChange={() => setIsAnimEnabled(!isAnimEnabled)} />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${isAnimEnabled ? 'bg-pink-500' : 'bg-slate-700'}`}></div>
+                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isAnimEnabled ? 'translate-x-4' : ''}`}></div>
+                </div>
+                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">
+                  3Dアニメーション
                 </span>
               </label>
             </div>
@@ -184,7 +287,7 @@ export default function App() {
                       <div className="flex items-center space-x-3 text-sm font-bold bg-black/20 px-4 py-2 rounded-2xl border border-white/5">
                         <span className="text-slate-300">全 {totalCount}</span>
                         <span className="text-slate-600">|</span>
-                        <span className="text-amber-400 flex items-center gap-1"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg> {bookmarkCount}</span>
+                        <span className="text-amber-400 flex items-center gap-1">★ {bookmarkCount}</span>
                       </div>
                     </div>
                     
@@ -211,7 +314,7 @@ export default function App() {
                       >
                         <div className="text-left">
                           <span className="block font-bold text-lg mb-1 flex items-center">
-                            <svg className={`w-5 h-5 mr-2 ${bookmarkCount > 0 ? 'text-amber-400' : 'text-slate-600'}`} fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                            <span className={`${bookmarkCount > 0 ? 'text-amber-400' : 'text-slate-600'} mr-2 text-xl`}>★</span>
                             ブックマーク演習
                           </span>
                           <span className={bookmarkCount > 0 ? "block text-slate-400 text-sm font-medium" : "block text-slate-600 text-sm font-medium"}>
@@ -232,7 +335,7 @@ export default function App() {
             学習（問題）画面 
             ============================== */}
         {screen === 'quiz' && (
-          <div className="animate-fade-in flex flex-col h-[85vh] max-h-[800px]">
+          <div className="animate-fade-in flex flex-col h-[85vh] max-h-[800px] touch-none">
             {/* ヘッダー */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -267,24 +370,64 @@ export default function App() {
             </div>
             
             {/* 3Dカードエリア */}
-            <div className="flex-grow flex items-center justify-center relative perspective-1000 mb-8 z-10 cursor-pointer" onClick={() => setIsAnswerRevealed(!isAnswerRevealed)}>
-              <div className={`w-full h-full max-h-[500px] relative transition-transform duration-700 transform-style-3d ${isAnswerRevealed ? 'rotate-y-180' : ''}`}>
+            <div className="flex-grow flex items-center justify-center relative perspective-1000 mb-8 z-10 cursor-pointer">
+              
+              {/* スワイプ可能なコンテナ */}
+              <div 
+                className={`w-full h-full max-h-[500px] relative transform-style-3d ${flipDurationClass} ${isAnswerRevealed ? 'rotate-y-180' : ''}`}
+                style={cardTransformStyle}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onMouseDown={(e) => {
+                  // For mouse testing
+                  setIsDragging(true);
+                  touchStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+                }}
+                onMouseMove={(e) => {
+                  if (!isDragging || !touchStartRef.current) return;
+                  setSwipeX(e.clientX - touchStartRef.current.x);
+                  setSwipeY(e.clientY - touchStartRef.current.y);
+                }}
+                onMouseUp={handleTouchEnd}
+                onMouseLeave={() => { if(isDragging) handleTouchEnd() }}
+              >
                 
                 {/* 表面 (Question) */}
-                <div className="absolute inset-0 backface-hidden bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 sm:p-12 shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex flex-col items-center justify-center text-center group overflow-y-auto">
+                <div className="absolute inset-0 backface-hidden bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 sm:p-12 shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex flex-col items-center justify-center text-center group overflow-hidden">
+                  
+                  {/* 透かし (Watermarks) */}
+                  <div className="absolute top-1/2 left-8 -translate-y-1/2 border-4 border-indigo-400 text-indigo-400 font-black text-3xl sm:text-4xl rounded-2xl px-6 py-2 transform -rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: nextOpacity }}>
+                    次へ
+                  </div>
+                  <div className="absolute top-1/2 right-8 -translate-y-1/2 border-4 border-amber-400 text-amber-400 font-black text-2xl sm:text-4xl rounded-2xl px-4 py-2 transform rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: bookmarkOpacity }}>
+                    ★ ブックマーク
+                  </div>
+
                   <span className="absolute top-6 left-6 text-sm font-black tracking-widest text-indigo-400/50 uppercase">Question</span>
-                  <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight">
-                    {targetQuestions[currentQuestionIndex]?.question}
-                  </h3>
-                  <div className="absolute bottom-6 opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-indigo-300 text-sm font-bold gap-2 bg-black/20 px-4 py-2 rounded-full">
-                    <svg className="w-5 h-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
-                    タップ または Space で解答を見る
+                  
+                  <div className="overflow-y-auto max-h-[80%] w-full flex items-center justify-center">
+                    <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight">
+                      {targetQuestions[currentQuestionIndex]?.question}
+                    </h3>
+                  </div>
+                  
+                  <div className="absolute bottom-6 flex items-center text-indigo-300/70 text-sm font-bold gap-2 bg-black/20 px-4 py-2 rounded-full pointer-events-none">
+                    タップして解答を見る
                   </div>
                 </div>
 
                 {/* 裏面 (Answer) */}
-                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800/90 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-8 sm:p-12 shadow-[0_20px_50px_rgba(99,102,241,0.2)] flex flex-col group overflow-y-auto">
-                  <div className="flex justify-between items-center mb-6 shrink-0">
+                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800/90 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-8 sm:p-12 shadow-[0_20px_50px_rgba(99,102,241,0.2)] flex flex-col group overflow-hidden">
+                  
+                  <div className="absolute top-1/2 left-8 -translate-y-1/2 border-4 border-indigo-400 text-indigo-400 font-black text-4xl rounded-2xl px-6 py-2 transform -rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: bookmarkOpacity }}>
+                    次へ
+                  </div>
+                  <div className="absolute top-1/2 right-8 -translate-y-1/2 border-4 border-amber-400 text-amber-400 font-black text-2xl sm:text-4xl rounded-2xl px-4 py-2 transform rotate-12 z-50 pointer-events-none transition-opacity" style={{ opacity: nextOpacity }}>
+                    ★ ブックマーク
+                  </div>
+
+                  <div className="flex justify-between items-center mb-6 shrink-0 z-10 relative">
                     <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">Answer</span>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setIsAnswerRevealed(false); }}
@@ -295,7 +438,7 @@ export default function App() {
                     </button>
                   </div>
                   
-                  <div className="flex-grow flex flex-col justify-center">
+                  <div className="flex-grow flex flex-col justify-center overflow-y-auto w-full z-10 relative">
                     <p className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 mb-8 pb-8 border-b border-white/10 leading-snug text-center">
                       {targetQuestions[currentQuestionIndex]?.answer}
                     </p>
@@ -351,13 +494,13 @@ export default function App() {
 
               <button
                 onClick={handleNext}
-                className="w-14 h-14 sm:w-auto sm:px-8 sm:py-4 flex items-center justify-center rounded-2xl font-bold transition-all bg-indigo-500 hover:bg-indigo-400 text-white shadow-[0_10px_20px_rgba(99,102,241,0.4)] border border-indigo-400/50 active:scale-95 group"
+                className="w-14 h-14 sm:w-auto sm:px-8 sm:py-4 flex items-center justify-center rounded-2xl font-bold transition-all bg-indigo-500 hover:bg-indigo-400 text-white shadow-[0_10px_20px_rgba(99,102,241,0.4)] border border-indigo-400/50 active:scale-95"
                 title="次の問題 (→)"
               >
                 {currentQuestionIndex + 1 < targetQuestions.length ? (
                   <>
                     <span className="hidden sm:inline text-lg mr-2 tracking-wide">次へ</span>
-                    <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                   </>
                 ) : (
                   <span className="text-lg tracking-widest px-2">完了</span>

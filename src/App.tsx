@@ -359,6 +359,11 @@ export default function App() {
                 );
               })}
             </div>
+
+            {/* バージョン表記 */}
+            <div className="flex justify-center pt-8 opacity-50 pointer-events-none">
+              <span className="text-xs font-mono tracking-widest text-slate-400">v1.0.1</span>
+            </div>
           </div>
         )}
 

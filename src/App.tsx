@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- 型定義 ---
 type Genre = '応用情報' | '統計検定2級';
@@ -49,7 +49,7 @@ export default function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [flipCount, setFlipCount] = useState(0);
   
-  const [exitAnim, setExitAnim] = useState<'left' | 'right' | null>(null);
+  const [slideDirection, setSlideDirection] = useState<'next'|'prev'|'swipeLeft'|'swipeRight'>('next');
   
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -105,9 +105,11 @@ export default function App() {
     setScreen('quiz');
   };
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback((direction: 'next' | 'swipeLeft' | 'swipeRight' = 'next') => {
     if (currentQuestionIndex + 1 < targetQuestions.length) {
-      setFlipCount(prev => (prev % 2 === 0 ? prev + 2 : prev + 1));
+      setSlideDirection(direction);
+      // 次のカードは必ず新しいDOMとしてマウントされるので、flipCountを0にリセットするだけでよい
+      setFlipCount(0);
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
       setScreen('result');
@@ -116,7 +118,9 @@ export default function App() {
 
   const handlePrev = useCallback(() => {
     if (currentQuestionIndex > 0) {
-      setFlipCount(prev => (prev % 2 === 0 ? prev + 2 : prev + 1));
+      setSlideDirection('prev');
+      // 戻る時も回転を見せないため、表面(0)でマウントさせる
+      setFlipCount(0);
       setCurrentQuestionIndex(prev => prev - 1);
     }
   }, [currentQuestionIndex]);
@@ -132,21 +136,17 @@ export default function App() {
     if (bookmarks.includes(currentId)) {
       handleToggleBookmark(currentId);
     }
-    triggerNext('right');
-  }, [bookmarks, currentQuestionIndex, targetQuestions, handleToggleBookmark]);
+    handleNext('swipeRight'); // 覚えた場合は右へ飛んで次へ
+  }, [bookmarks, currentQuestionIndex, targetQuestions, handleToggleBookmark, handleNext]);
 
   const triggerNext = (direction: 'left' | 'right', doBookmark: boolean = false) => {
-    setExitAnim(direction);
-    setTimeout(() => {
-      if (doBookmark) {
-        const currentId = targetQuestions[currentQuestionIndex]?.id;
-        if (currentId && !bookmarks.includes(currentId)) {
-          handleToggleBookmark(currentId);
-        }
+    if (doBookmark) {
+      const currentId = targetQuestions[currentQuestionIndex]?.id;
+      if (currentId && !bookmarks.includes(currentId)) {
+        handleToggleBookmark(currentId);
       }
-      handleNext();
-      setExitAnim(null);
-    }, 300);
+    }
+    handleNext(direction === 'left' ? 'swipeLeft' : 'swipeRight');
   };
 
   // Pointer Event Handlers (Unifies Touch and Mouse, fixes mobile double-fire bug)
@@ -226,21 +226,34 @@ export default function App() {
   if (!isMounted) return <div className="min-h-screen bg-slate-950" />;
 
   // Dynamic Styles
-  let exitTransform = '';
-  if (exitAnim === 'right') {
-    exitTransform = `translateX(150vw) rotate(30deg)`;
-  } else if (exitAnim === 'left') {
-    exitTransform = `translateX(-150vw) rotate(-30deg)`;
-  }
-
   // スワイプ・移動用（親要素）
   const swipeTransformStyle = {
-    transform: exitAnim 
-      ? exitTransform
-      : isDragging 
+    transform: isDragging 
         ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg)`
         : `translateX(0px) translateY(0px) rotate(0deg)`,
-    transition: isDragging ? 'none' : (!isAnimEnabled && !exitAnim ? 'none' : 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)')
+    transition: isDragging ? 'none' : (!isAnimEnabled ? 'none' : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)')
+  };
+
+  const cardVariants = {
+    enter: (direction: 'next'|'prev'|'swipeLeft'|'swipeRight') => ({
+      // prev（戻る）の時のみ、左側外からスライドインしてくる
+      x: direction === 'prev' ? '-100vw' : '0%',
+      opacity: direction === 'prev' ? 1 : 0,
+      zIndex: direction === 'prev' ? 20 : 0,
+    }),
+    center: {
+      x: '0%',
+      opacity: 1,
+      rotate: 0,
+      zIndex: 10,
+    },
+    exit: (direction: 'next'|'prev'|'swipeLeft'|'swipeRight') => ({
+      // 次へ進む場合（next, swipeLeft, swipeRight）は、現在のカードが画面外へ飛んでいく
+      x: direction === 'swipeLeft' ? '-100vw' : direction === 'swipeRight' ? '100vw' : direction === 'next' ? '100vw' : '0%',
+      rotate: direction === 'swipeLeft' ? -30 : direction === 'swipeRight' || direction === 'next' ? 30 : 0,
+      opacity: direction === 'prev' ? 0 : 1, // prevの時はその場で透明になる（または下に隠れる）
+      zIndex: direction === 'prev' ? 0 : 20,
+    })
   };
 
   // Watermarks Opacity
@@ -288,7 +301,7 @@ export default function App() {
                   <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isAnimEnabled ? 'translate-x-4' : ''}`}></div>
                 </div>
                 <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">
-                  3Dアニメーション
+                  アニメーション
                 </span>
               </label>
             </div>
@@ -390,8 +403,8 @@ export default function App() {
             {/* 3Dカードエリア */}
             <div className="flex-grow flex items-center justify-center relative perspective-1000 mb-8 z-10 cursor-pointer">
               
-              {/* 次の問題のカード（背景用） */}
-              {currentQuestionIndex + 1 < targetQuestions.length && (
+              {/* 次の問題のカード（背景用 - nextの時だけ表示） */}
+              {currentQuestionIndex + 1 < targetQuestions.length && slideDirection !== 'prev' && (
                 <div className="absolute w-full h-full max-h-[500px] bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-sm scale-95 translate-y-4 pointer-events-none z-0 flex flex-col items-center justify-center text-center">
                   <span className="absolute top-6 left-6 text-sm font-black tracking-widest text-indigo-400/30 uppercase">Next</span>
                   <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white/50 tracking-tight">
@@ -400,87 +413,100 @@ export default function App() {
                 </div>
               )}
 
-              {/* スワイプ可能なコンテナ（手前・親） */}
-              <div 
-                className="w-full h-full max-h-[500px] relative z-10"
-                style={swipeTransformStyle}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-              >
-                
-                {/* フリップ回転用コンテナ（子） */}
-                <motion.div 
-                  className="w-full h-full absolute inset-0 transform-style-3d"
-                  initial={false}
-                  animate={{ rotateY: isAnimEnabled ? flipCount * -180 : (flipCount % 2 !== 0 ? -180 : 0) }}
-                  transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+              <AnimatePresence custom={slideDirection} mode="popLayout">
+                <motion.div
+                  key={currentQuestionIndex}
+                  custom={slideDirection}
+                  variants={cardVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: isAnimEnabled ? 0.4 : 0, ease: "easeInOut" }}
+                  className="w-full h-full absolute inset-0 z-10 flex items-center justify-center"
                 >
-                  
-                  {/* 表面 (Question) */}
-                  <div className="absolute inset-0 backface-hidden bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
+                  {/* スワイプ可能なコンテナ（手前・親） */}
+                  <div 
+                    className="w-full h-full max-h-[500px] relative z-10"
+                    style={swipeTransformStyle}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
+                  >
                     
-                    {/* ラベルを絶対配置にして表裏で完全に位置を固定 */}
-                    <div className="absolute top-8 left-8 sm:top-12 sm:left-12 z-20">
-                      <span className="text-sm font-black tracking-widest text-emerald-400 uppercase bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 shadow-sm">Question</span>
-                    </div>
-                    
-                    <div className="flex-grow flex items-center justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
-                      <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight text-center">
-                        {targetQuestions[currentQuestionIndex]?.question}
-                      </h3>
-                    </div>
-                    
-                    {/* フッターヒントも絶対配置で統一 */}
-                    <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-20">
-                      <span className="text-indigo-300/70 text-sm font-bold bg-black/20 px-4 py-2 rounded-full">
-                        タップして解答を見る
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 裏面 (Answer) */}
-                  <div className="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800 border border-indigo-500/50 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
-                    
-                    {/* 表面と全く同じ絶対配置のラベル */}
-                    <div className="absolute top-8 left-8 sm:top-12 sm:left-12 z-20">
-                      <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20 shadow-sm">Answer</span>
-                    </div>
-                    
-                    <div className="flex-grow flex flex-col justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
-                      <p className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 mb-8 pb-8 border-b border-white/10 leading-snug text-center">
-                        {targetQuestions[currentQuestionIndex]?.answer}
-                      </p>
+                    {/* フリップ回転用コンテナ（子） */}
+                    <motion.div 
+                      className="w-full h-full absolute inset-0 transform-style-3d"
+                      initial={false}
+                      animate={{ rotateY: isAnimEnabled ? flipCount * -180 : (flipCount % 2 !== 0 ? -180 : 0) }}
+                      transition={{ duration: isAnimEnabled ? 0.6 : 0, ease: [0.34, 1.56, 0.64, 1] }}
+                    >
                       
-                      <div className="bg-black/30 rounded-2xl p-6 border border-white/5 relative">
-                        <span className="absolute -top-3 left-6 text-xs font-black tracking-widest text-slate-400 uppercase bg-[#0f172a] px-2">解説</span>
-                        <p className="text-slate-300 leading-relaxed sm:text-lg">
-                          {targetQuestions[currentQuestionIndex]?.explanation}
-                        </p>
+                      {/* 表面 (Question) */}
+                      <div className="absolute inset-0 backface-hidden bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
+                        
+                        {/* ラベルを絶対配置にして表裏で完全に位置を固定 */}
+                        <div className="absolute top-8 left-8 sm:top-12 sm:left-12 z-20">
+                          <span className="text-sm font-black tracking-widest text-emerald-400 uppercase bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 shadow-sm">Question</span>
+                        </div>
+                        
+                        <div className="flex-grow flex items-center justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
+                          <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight text-center">
+                            {targetQuestions[currentQuestionIndex]?.question}
+                          </h3>
+                        </div>
+                        
+                        {/* フッターヒントも絶対配置で統一 */}
+                        <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-20">
+                          <span className="text-indigo-300/70 text-sm font-bold bg-black/20 px-4 py-2 rounded-full">
+                            タップして解答を見る
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-20">
-                      <span className="text-slate-400/70 text-sm font-bold bg-black/20 px-4 py-2 rounded-full">
-                        スワイプで次へ進む
-                      </span>
-                    </div>
+                      {/* 裏面 (Answer) - 背景色をindigo-950/90に変更して明確に区別 */}
+                      <div className="absolute inset-0 backface-hidden rotate-y-180 bg-indigo-950/90 border border-indigo-500/50 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
+                        
+                        {/* 表面と全く同じ絶対配置のラベル */}
+                        <div className="absolute top-8 left-8 sm:top-12 sm:left-12 z-20">
+                          <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20 shadow-sm">Answer</span>
+                        </div>
+                        
+                        <div className="flex-grow flex flex-col justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
+                          <p className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 mb-8 pb-8 border-b border-white/10 leading-snug text-center">
+                            {targetQuestions[currentQuestionIndex]?.answer}
+                          </p>
+                          
+                          <div className="bg-black/30 rounded-2xl p-6 border border-white/5 relative">
+                            <span className="absolute -top-3 left-6 text-xs font-black tracking-widest text-slate-400 uppercase bg-[#0f172a] px-2">解説</span>
+                            <p className="text-slate-300 leading-relaxed sm:text-lg">
+                              {targetQuestions[currentQuestionIndex]?.explanation}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-20">
+                          <span className="text-slate-400/70 text-sm font-bold bg-black/20 px-4 py-2 rounded-full">
+                            スワイプで次へ進む
+                          </span>
+                        </div>
+                      </div>
+
+                    </motion.div>
                   </div>
-
                 </motion.div>
-              </div>
+              </AnimatePresence>
 
-              {/* 透かし (Watermarks - 回転要素の外側に配置し、表裏共通にする) */}
-              <div className="absolute inset-0 z-50 pointer-events-none flex justify-center items-center overflow-hidden rounded-3xl">
+              {/* 透かし (Watermarks - 位置を中央から上部 top-10 に変更) */}
+              <div className="absolute top-10 inset-x-0 h-40 z-50 pointer-events-none flex justify-center items-start overflow-hidden">
                 <div 
-                  className="absolute border-[12px] border-emerald-500 text-emerald-500 font-black text-6xl sm:text-7xl rounded-3xl px-12 py-6 transform -rotate-12 bg-slate-900/60 backdrop-blur-md"
+                  className="absolute border-[8px] sm:border-[10px] border-emerald-500 text-emerald-500 font-black text-4xl sm:text-5xl rounded-2xl px-8 py-4 transform -rotate-12 bg-slate-900/60 backdrop-blur-md"
                   style={{ opacity: nextOpacity, transition: isDragging ? 'none' : 'opacity 0.2s', textShadow: '0 4px 20px rgba(16,185,129,0.5)', boxShadow: '0 10px 40px rgba(16,185,129,0.3)' }}
                 >
                   NEXT
                 </div>
                 <div 
-                  className="absolute border-[12px] border-rose-500 text-rose-500 font-black text-5xl sm:text-6xl rounded-3xl px-12 py-6 transform rotate-12 bg-slate-900/60 backdrop-blur-md"
+                  className="absolute border-[8px] sm:border-[10px] border-rose-500 text-rose-500 font-black text-3xl sm:text-4xl rounded-2xl px-8 py-4 transform rotate-12 bg-slate-900/60 backdrop-blur-md"
                   style={{ opacity: bookmarkOpacity, transition: isDragging ? 'none' : 'opacity 0.2s', textShadow: '0 4px 20px rgba(244,63,94,0.5)', boxShadow: '0 10px 40px rgba(244,63,94,0.3)' }}
                 >
                   BOOKMARK

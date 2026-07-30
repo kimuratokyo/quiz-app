@@ -238,7 +238,7 @@ export default function App() {
     enter: (direction: 'next'|'prev'|'swipeLeft'|'swipeRight') => ({
       // prev（戻る）の時のみ、左側外からスライドインしてくる
       x: direction === 'prev' ? '-100vw' : '0%',
-      opacity: direction === 'prev' ? 1 : 0,
+      opacity: 1, // 常に1（透明にしない）
       zIndex: direction === 'prev' ? 20 : 0,
     }),
     center: {
@@ -251,7 +251,7 @@ export default function App() {
       // 次へ進む場合（next, swipeLeft, swipeRight）は、現在のカードが画面外へ飛んでいく
       x: direction === 'swipeLeft' ? '-100vw' : direction === 'swipeRight' ? '100vw' : direction === 'next' ? '100vw' : '0%',
       rotate: direction === 'swipeLeft' ? -30 : direction === 'swipeRight' || direction === 'next' ? 30 : 0,
-      opacity: direction === 'prev' ? 0 : 1, // prevの時はその場で透明になる（または下に隠れる）
+      opacity: direction === 'prev' ? 0 : 1,
       zIndex: direction === 'prev' ? 0 : 20,
     })
   };
@@ -405,11 +405,13 @@ export default function App() {
               
               {/* 次の問題のカード（背景用 - nextの時だけ表示） */}
               {currentQuestionIndex + 1 < targetQuestions.length && slideDirection !== 'prev' && (
-                <div className="absolute w-full h-full max-h-[500px] bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-sm scale-95 translate-y-4 pointer-events-none z-0 flex flex-col items-center justify-center text-center">
-                  <span className="absolute top-6 left-6 text-sm font-black tracking-widest text-indigo-400/30 uppercase">Next</span>
-                  <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white/50 tracking-tight">
-                    {targetQuestions[currentQuestionIndex + 1]?.question}
-                  </h3>
+                <div className="absolute w-full h-full max-h-[500px] bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-sm pointer-events-none z-0 flex flex-col items-center justify-center text-center">
+                  <span className="absolute top-8 left-8 sm:top-12 sm:left-12 text-sm font-black tracking-widest text-emerald-400/30 uppercase">Question</span>
+                  <div className="flex-grow flex items-center justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
+                    <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white/50 tracking-tight text-center">
+                      {targetQuestions[currentQuestionIndex + 1]?.question}
+                    </h3>
+                  </div>
                 </div>
               )}
 
@@ -464,8 +466,8 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* 裏面 (Answer) - 背景色をindigo-950/90に変更して明確に区別 */}
-                      <div className="absolute inset-0 backface-hidden rotate-y-180 bg-indigo-950/90 border border-indigo-500/50 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
+                      {/* 裏面 (Answer) - 透過をなくすため bg-indigo-950 に変更 */}
+                      <div className="absolute inset-0 backface-hidden rotate-y-180 bg-indigo-950 border border-indigo-500/50 rounded-3xl p-8 sm:p-12 shadow-2xl flex flex-col group overflow-hidden">
                         
                         {/* 表面と全く同じ絶対配置のラベル */}
                         <div className="absolute top-8 left-8 sm:top-12 sm:left-12 z-20">

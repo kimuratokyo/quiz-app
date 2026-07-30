@@ -33,3 +33,11 @@
     radial-gradient(at 10% 90%, rgba(236, 72, 153, 0.12) 0px, transparent 50%);
   background-attachment: fixed;
 }
+
+/* Fix KaTeX styling issues with Tailwind CSS */
+.katex * {
+  border-color: currentColor !important;
+}
+.katex {
+  line-height: normal !important;
+}

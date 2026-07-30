@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Latex from 'react-latex-next';
+import 'katex/dist/katex.min.css';
 
 // --- 型定義 ---
 type Genre = '応用情報' | '統計検定2級' | 'データの基礎' | '2変数データと時系列データ' | '確率と確率分布' | '正規分布と標本分布' | '統計的推定' | '仮説検定';
@@ -714,7 +716,7 @@ export default function App() {
                   <span className="absolute top-8 left-8 sm:top-12 sm:left-12 text-sm font-black tracking-widest text-emerald-400/30 uppercase">Question</span>
                   <div className="flex-grow flex items-center justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
                     <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white/50 tracking-tight text-center">
-                      {targetQuestions[currentQuestionIndex + 1]?.question}
+                      <Latex>{targetQuestions[currentQuestionIndex + 1]?.question || ''}</Latex>
                     </h3>
                   </div>
                 </div>
@@ -759,7 +761,7 @@ export default function App() {
                         
                         <div className="flex-grow flex items-center justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
                           <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight text-center">
-                            {targetQuestions[currentQuestionIndex]?.question}
+                            <Latex>{targetQuestions[currentQuestionIndex]?.question || ''}</Latex>
                           </h3>
                         </div>
                         
@@ -781,13 +783,13 @@ export default function App() {
                         
                         <div className="flex-grow flex flex-col justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
                           <p className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 mb-8 pb-8 border-b border-white/10 leading-snug text-center">
-                            {targetQuestions[currentQuestionIndex]?.answer}
+                            <Latex>{targetQuestions[currentQuestionIndex]?.answer || ''}</Latex>
                           </p>
                           
                           <div className="bg-black/30 rounded-2xl p-6 border border-white/5 relative">
                             <span className="absolute -top-3 left-6 text-xs font-black tracking-widest text-slate-400 uppercase bg-[#0f172a] px-2">解説</span>
                             <p className="text-slate-300 leading-relaxed sm:text-lg">
-                              {targetQuestions[currentQuestionIndex]?.explanation}
+                              <Latex>{targetQuestions[currentQuestionIndex]?.explanation || ''}</Latex>
                             </p>
                           </div>
                         </div>

@@ -507,12 +507,12 @@ export default function App() {
     
     const timeDelta = Date.now() - touchStartRef.current.time;
     // 小さい動きかつ短時間は「タップ」と判定
-    const isTap = Math.abs(swipeX) < 15 && Math.abs(swipeY) < 15 && timeDelta < 500;
+    const isTap = Math.abs(swipeX) < 20 && Math.abs(swipeY) < 20 && timeDelta < 500;
     
     if (isTap) {
       setFlipCount(prev => prev + 1);
     } else {
-      const SWIPE_THRESHOLD = 80;
+      const SWIPE_THRESHOLD = 40;
       if (swipeX > SWIPE_THRESHOLD) {
         // 右スワイプ: 次へ
         triggerNext('right');

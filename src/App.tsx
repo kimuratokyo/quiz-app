@@ -763,7 +763,7 @@ export default function App() {
                 >
                   {/* スワイプ可能なコンテナ（手前・親） */}
                   <div 
-                    className="w-full h-full max-h-[500px] relative z-10"
+                    className="w-full h-full max-h-[500px] relative z-10 touch-pan-y touch-pinch-zoom select-none"
                     style={swipeTransformStyle}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
@@ -941,3 +941,4 @@ export default function App() {
     </div>
   );
 }
+

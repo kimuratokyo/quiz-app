@@ -687,13 +687,13 @@ return (
                   <motion.div 
                     className="w-full h-full max-h-[500px] relative z-10 touch-none select-none"
                     style={{ x, rotate }}
-                    drag={true}
-dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-dragElastic={{ top: 0, bottom: 0, left: 0.8, right: 0.8 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={1}
                     onDragEnd={(_, { offset, velocity }) => {
-                      if (offset.x > 50 || velocity.x > 300) {
+                      if (offset.x > 30 || velocity.x > 200) {
                         triggerNext('right');
-                      } else if (offset.x < -50 || velocity.x < -300) {
+                      } else if (offset.x < -30 || velocity.x < -200) {
                         triggerNext('left', true);
                       }
                     }}

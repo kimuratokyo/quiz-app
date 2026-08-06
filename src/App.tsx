@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -383,6 +383,7 @@ export default function App() {
   
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const touchStartPos = useRef({ x: 0, y: 0 });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // Framer Motion Drag State
   const x = useMotionValue(0);
@@ -663,7 +664,7 @@ return (
               {currentQuestionIndex + 1 < targetQuestions.length && slideDirection !== 'prev' && (
                 <div className="absolute w-full h-full max-h-[500px] bg-slate-800 border border-slate-700 rounded-3xl p-8 sm:p-12 shadow-sm pointer-events-none z-0 flex flex-col items-center justify-center text-center">
                   <span className="absolute top-8 left-8 sm:top-12 sm:left-12 text-sm font-black tracking-widest text-emerald-400/30 uppercase">Question</span>
-                  <div className="flex-grow flex items-center justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
+                  <div className="flex-grow flex items-center justify-center w-full z-10 relative pointer-events-none pt-12 pb-12">
                     <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white/50 tracking-tight text-center">
                       <Latex>{targetQuestions[currentQuestionIndex + 1]?.question || ''}</Latex>
                     </h3>
@@ -696,7 +697,14 @@ dragElastic={{ top: 0, bottom: 0, left: 0.8, right: 0.8 }}
                         triggerNext('left', true);
                       }
                     }}
-                    onTap={() => setFlipCount(prev => prev + 1)}
+                    onPointerDown={(e) => { touchStartPos.current = { x: e.clientX, y: e.clientY }; }}
+                    onPointerUp={(e) => {
+                      const dx = e.clientX - touchStartPos.current.x;
+                      const dy = e.clientY - touchStartPos.current.y;
+                      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+                        setFlipCount(prev => prev + 1);
+                      }
+                    }}
                   >
                     
                     {/* フリップ回転用コンテナ（子） */}
@@ -715,7 +723,7 @@ dragElastic={{ top: 0, bottom: 0, left: 0.8, right: 0.8 }}
                           <span className="text-sm font-black tracking-widest text-emerald-400 uppercase bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 shadow-sm">Question</span>
                         </div>
                         
-                        <div className="flex-grow flex items-center justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
+                        <div className="flex-grow flex items-center justify-center w-full z-10 relative pointer-events-none pt-12 pb-12">
                           <h3 className="text-3xl sm:text-4xl leading-snug sm:leading-tight font-extrabold text-white tracking-tight text-center">
                             <Latex>{targetQuestions[currentQuestionIndex]?.question || ''}</Latex>
                           </h3>
@@ -733,7 +741,7 @@ dragElastic={{ top: 0, bottom: 0, left: 0.8, right: 0.8 }}
                           <span className="text-sm font-black tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20 shadow-sm">Answer</span>
                         </div>
                         
-                        <div className="flex-grow flex flex-col justify-center overflow-y-auto w-full z-10 relative pt-12 pb-12">
+                        <div className="flex-grow flex flex-col justify-center w-full z-10 relative pointer-events-none pt-12 pb-12">
                           <p className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-200 mb-8 pb-8 border-b border-white/10 leading-snug text-center">
                             <Latex>{targetQuestions[currentQuestionIndex]?.answer || ''}</Latex>
                           </p>
@@ -906,6 +914,7 @@ dragElastic={{ top: 0, bottom: 0, left: 0.8, right: 0.8 }}
     </div>
   );
 }
+
 
 
 

@@ -63,19 +63,19 @@ export const SwipeCard = ({
           if (offset.x > 20 || velocity.x > 100) {
             animate(x, window.innerWidth, {
               type: 'spring',
-              velocity: velocity.x,
-              stiffness: 100,
-              damping: 20,
-              restDelta: 10
-            }).then(() => onNext('right'));
+              velocity: Math.max(velocity.x, 800),
+              stiffness: 200,
+              damping: 25
+            });
+            onNext('right');
           } else if (offset.x < -20 || velocity.x < -100) {
             animate(x, -window.innerWidth, {
               type: 'spring',
-              velocity: velocity.x,
-              stiffness: 100,
-              damping: 20,
-              restDelta: 10
-            }).then(() => onPrev('left'));
+              velocity: Math.min(velocity.x, -800),
+              stiffness: 200,
+              damping: 25
+            });
+            onPrev('left');
           }
         }}
         onPointerDown={(e) => { touchStartPos.current = { x: e.clientX, y: e.clientY }; }}

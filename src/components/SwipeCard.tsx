@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
@@ -61,9 +61,21 @@ export const SwipeCard = ({
         dragElastic={1}
         onDragEnd={(_, { offset, velocity }) => {
           if (offset.x > 20 || velocity.x > 100) {
-            onNext('right');
+            animate(x, window.innerWidth, {
+              type: 'spring',
+              velocity: velocity.x,
+              stiffness: 100,
+              damping: 20,
+              restDelta: 10
+            }).then(() => onNext('right'));
           } else if (offset.x < -20 || velocity.x < -100) {
-            onPrev('left');
+            animate(x, -window.innerWidth, {
+              type: 'spring',
+              velocity: velocity.x,
+              stiffness: 100,
+              damping: 20,
+              restDelta: 10
+            }).then(() => onPrev('left'));
           }
         }}
         onPointerDown={(e) => { touchStartPos.current = { x: e.clientX, y: e.clientY }; }}

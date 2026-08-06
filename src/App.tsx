@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
@@ -383,14 +383,12 @@ export default function App() {
   
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-
-  // Touch Handling State
-  const [swipeX, setSwipeX] = useState(0);
-  const [swipeY, setSwipeY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const touchStartRef = useRef<{ x: number, y: number, time: number } | null>(null);
-
-  // LocalStorage Loading
+  // Framer Motion Drag State
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-10, 10]);
+  const nextOpacity = useTransform(x, [0, 100], [0, 1]);
+  const bookmarkOpacity = useTransform(x, [0, -100], [0, 1]);
+// LocalStorage Loading
   useEffect(() => {
     const savedBookmarks = localStorage.getItem('quiz_bookmarks_v3');
     if (savedBookmarks) {
@@ -477,64 +475,7 @@ export default function App() {
       }
     }
     handleNext(direction === 'left' ? 'swipeLeft' : 'swipeRight');
-  };
-
-  // Pointer Event Handlers (Unifies Touch and Mouse, fixes mobile double-fire bug)
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return; // Only left click for mouse
-    touchStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      time: Date.now()
-    };
-    setIsDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging || !touchStartRef.current) return;
-    const deltaX = e.clientX - touchStartRef.current.x;
-    const deltaY = e.clientY - touchStartRef.current.y;
-    setSwipeX(deltaX);
-    setSwipeY(deltaY);
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!touchStartRef.current) {
-      setIsDragging(false);
-      return;
-    }
-    
-    const timeDelta = Date.now() - touchStartRef.current.time;
-    // 小さい動きかつ短時間は「タップ」と判定
-    const isTap = Math.abs(swipeX) < 20 && Math.abs(swipeY) < 20 && timeDelta < 500;
-    
-    if (isTap) {
-      setFlipCount(prev => prev + 1);
-    } else {
-      const SWIPE_THRESHOLD = 40;
-      if (swipeX > SWIPE_THRESHOLD) {
-        // 右スワイプ: 次へ
-        triggerNext('right');
-      } else if (swipeX < -SWIPE_THRESHOLD) {
-        // 左スワイプ: ブックマークして次へ
-        triggerNext('left', true);
-      }
-    }
-    
-    setIsDragging(false);
-    setSwipeX(0);
-    setSwipeY(0);
-    touchStartRef.current = null;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch (err) {
-      // Ignore if pointer capture was already lost
-    }
-  };
-
-
-  // Keyboard Shortcuts
+  };// Keyboard Shortcuts
   useEffect(() => {
     if (screen !== 'quiz') return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -554,17 +495,7 @@ export default function App() {
   }, [screen, handleNext, handlePrev]);
 
   if (!isMounted) return <div className="min-h-screen bg-slate-950" />;
-
-  // Dynamic Styles
-  // スワイプ・移動用（親要素）
-  const swipeTransformStyle = {
-    transform: isDragging 
-        ? `translateX(${swipeX}px) translateY(${swipeY}px) rotate(${swipeX * 0.05}deg)`
-        : `translateX(0px) translateY(0px) rotate(0deg)`,
-    transition: isDragging ? 'none' : (!isAnimEnabled ? 'none' : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)')
-  };
-
-  const cardVariants = {
+const cardVariants = {
     enter: (direction: 'next'|'prev'|'swipeLeft'|'swipeRight') => ({
       // prev（戻る）の時のみ、左側外からスライドインしてくる
       x: direction === 'prev' ? '-100vw' : '0%',
@@ -585,12 +516,7 @@ export default function App() {
       zIndex: direction === 'prev' ? 0 : 20,
     })
   };
-
-  // Watermarks Opacity
-  const nextOpacity = Math.max(0, Math.min(1, swipeX / 100));
-  const bookmarkOpacity = Math.max(0, Math.min(1, -swipeX / 100));
-
-  return (
+return (
     <div className="min-h-screen bg-mesh text-slate-200 flex items-center justify-center p-4 sm:p-6 font-sans antialiased selection:bg-indigo-500/30 overflow-hidden">
       
       <div className="max-w-4xl w-full">
@@ -762,13 +688,20 @@ export default function App() {
                   className="w-full h-full absolute inset-0 z-10 flex items-center justify-center"
                 >
                   {/* スワイプ可能なコンテナ（手前・親） */}
-                  <div 
-                    className="w-full h-full max-h-[500px] relative z-10 touch-pan-y touch-pinch-zoom select-none"
-                    style={swipeTransformStyle}
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerCancel={handlePointerUp}
+                  <motion.div 
+                    className="w-full h-full max-h-[500px] relative z-10 touch-none select-none"
+                    style={{ x, rotate }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.8}
+                    onDragEnd={(_, { offset, velocity }) => {
+                      if (offset.x > 80 || velocity.x > 500) {
+                        triggerNext('right');
+                      } else if (offset.x < -80 || velocity.x < -500) {
+                        triggerNext('left', true);
+                      }
+                    }}
+                    onTap={() => setFlipCount(prev => prev + 1)}
                   >
                     
                     {/* フリップ回転用コンテナ（子） */}
@@ -830,24 +763,23 @@ export default function App() {
                       </div>
 
                     </motion.div>
-                  </div>
+                  </motion.div>
                 </motion.div>
               </AnimatePresence>
 
               {/* 透かし (Watermarks - 位置を中央から上部 top-10 に変更) */}
               <div className="absolute top-10 inset-x-0 h-40 z-50 pointer-events-none flex justify-center items-start overflow-hidden">
-                <div 
-                  className="absolute border-[8px] sm:border-[10px] border-emerald-500 text-emerald-500 font-black text-4xl sm:text-5xl rounded-2xl px-8 py-4 transform -rotate-12 bg-slate-900/60 backdrop-blur-md"
-                  style={{ opacity: nextOpacity, transition: isDragging ? 'none' : 'opacity 0.2s', textShadow: '0 4px 20px rgba(16,185,129,0.5)', boxShadow: '0 10px 40px rgba(16,185,129,0.3)' }}
+                <motion.div className="absolute border-[8px] sm:border-[10px] border-emerald-500 text-emerald-500 font-black text-4xl sm:text-5xl rounded-2xl px-8 py-4 transform -rotate-12 bg-slate-900/60 backdrop-blur-md"
+                  style={{ opacity: nextOpacity, textShadow: '0 4px 20px rgba(16,185,129,0.5)', boxShadow: '0 10px 40px rgba(16,185,129,0.3)' }}
                 >
                   NEXT
-                </div>
-                <div 
+                </motion.div>
+                <motion.div 
                   className="absolute border-[8px] sm:border-[10px] border-rose-500 text-rose-500 font-black text-3xl sm:text-4xl rounded-2xl px-8 py-4 transform rotate-12 bg-slate-900/60 backdrop-blur-md"
-                  style={{ opacity: bookmarkOpacity, transition: isDragging ? 'none' : 'opacity 0.2s', textShadow: '0 4px 20px rgba(244,63,94,0.5)', boxShadow: '0 10px 40px rgba(244,63,94,0.3)' }}
+                  style={{ opacity: bookmarkOpacity, textShadow: '0 4px 20px rgba(244,63,94,0.5)', boxShadow: '0 10px 40px rgba(244,63,94,0.3)' }}
                 >
                   BOOKMARK
-                </div>
+                </motion.div>
               </div>
             </div>
 
@@ -941,4 +873,5 @@ export default function App() {
     </div>
   );
 }
+
 

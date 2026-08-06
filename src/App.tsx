@@ -383,6 +383,7 @@ export default function App() {
   
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // Framer Motion Drag State
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-10, 10]);
@@ -550,16 +551,10 @@ return (
                 </span>
               </label>
 
-              <label className="flex items-center space-x-3 cursor-pointer group bg-white/5 px-5 py-3 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
-                <div className="relative">
-                  <input type="checkbox" className="sr-only" checked={isAnimEnabled} onChange={() => setIsAnimEnabled(!isAnimEnabled)} />
-                  <div className={`block w-10 h-6 rounded-full transition-colors ${isAnimEnabled ? 'bg-pink-500' : 'bg-slate-700'}`}></div>
-                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isAnimEnabled ? 'translate-x-4' : ''}`}></div>
-                </div>
-                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">
-                  アニメーション
-                </span>
-              </label>
+              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center space-x-2 bg-white/5 px-5 py-3 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all text-slate-300 hover:text-white font-bold text-sm">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span>設定</span>
+              </button>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -691,9 +686,9 @@ return (
                   <motion.div 
                     className="w-full h-full max-h-[500px] relative z-10 touch-none select-none"
                     style={{ x, rotate }}
-                    drag="x"
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.8}
+                    drag={true}
+dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+dragElastic={{ top: 0, bottom: 0, left: 0.8, right: 0.8 }}
                     onDragEnd={(_, { offset, velocity }) => {
                       if (offset.x > 80 || velocity.x > 500) {
                         triggerNext('right');
@@ -727,11 +722,7 @@ return (
                         </div>
                         
                         {/* フッターヒントも絶対配置で統一 */}
-                        <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-20">
-                          <span className="text-indigo-300/70 text-sm font-bold bg-black/20 px-4 py-2 rounded-full">
-                            タップして解答を見る
-                          </span>
-                        </div>
+                        
                       </div>
 
                       {/* 裏面 (Answer) - 透過をなくすため bg-indigo-950 に変更 */}
@@ -755,11 +746,7 @@ return (
                           </div>
                         </div>
 
-                        <div className="absolute bottom-8 left-0 right-0 flex justify-center pointer-events-none z-20">
-                          <span className="text-slate-400/70 text-sm font-bold bg-black/20 px-4 py-2 rounded-full">
-                            スワイプで次へ進む
-                          </span>
-                        </div>
+                        
                       </div>
 
                     </motion.div>
@@ -870,8 +857,55 @@ return (
         )}
 
       </div>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsSettingsOpen(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-slate-900 border border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative"
+            >
+              <button 
+                onClick={() => setIsSettingsOpen(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full p-2 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              
+              <h2 className="text-2xl font-black text-white mb-8 flex items-center gap-3">
+                <svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                設定
+              </h2>
+              
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-white font-bold text-lg">アニメーション</div>
+                    <div className="text-slate-400 text-sm">カードのフリップやスワイプ演出</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={isAnimEnabled} onChange={() => setIsAnimEnabled(!isAnimEnabled)} />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                  </label>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
 
 

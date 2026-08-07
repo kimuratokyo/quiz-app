@@ -33,11 +33,13 @@ const Latex = ({ children }: { children: string }) => {
 export const SwipeCard = ({
   question,
   isAnimEnabled,
+  showWatermarks,
   onNext,
   onPrev
 }: {
   question: any;
   isAnimEnabled: boolean;
+  showWatermarks: boolean;
   onNext: (dir: 'left' | 'right') => void;
   onPrev: (dir: 'left' | 'right') => void;
 }) => {
@@ -126,6 +128,7 @@ export const SwipeCard = ({
       </motion.div>
 
       {/* Watermarks */}
+      {showWatermarks && (
       <div className="absolute top-10 inset-x-0 h-40 z-50 pointer-events-none flex justify-center items-start overflow-hidden">
         <motion.div className="absolute border-[8px] sm:border-[10px] border-emerald-500 text-emerald-500 font-black text-4xl sm:text-5xl rounded-2xl px-8 py-4 transform -rotate-12 bg-slate-900/60 backdrop-blur-md"
           style={{ opacity: nextOpacity, textShadow: '0 4px 20px rgba(16,185,129,0.5)', boxShadow: '0 10px 40px rgba(16,185,129,0.3)' }}
@@ -139,6 +142,7 @@ export const SwipeCard = ({
           BOOKMARK
         </motion.div>
       </div>
+      )}
     </>
   );
 };

@@ -33,7 +33,7 @@ const Latex = ({ children }: { children: string }) => {
 };
 
 // --- 型定義 ---
-type Genre = '応用情報' | '統計検定2級' | 'データの基礎' | '2変数データと時系列データ' | '確率と確率分布' | '正規分布と標本分布' | '統計的推定' | '仮説検定';
+type Genre = 'データの基礎' | '2変数データと時系列データ' | '確率と確率分布' | '正規分布と標本分布' | '統計的推定' | '仮説検定';
 type Question = {
   id: string;
   genre: Genre;
@@ -41,21 +41,11 @@ type Question = {
   answer: string;
   explanation: string;
 };
-type ScreenType = 'title' | 'quiz' | 'result';
+type ScreenType = 'title' | 'category' | 'quiz' | 'result';
 type PlayMode = 'all' | 'bookmark';
 
 // --- モックデータ ---
 const quizData: Question[] = [
-  { id: 'ap-1', genre: '応用情報', question: 'MTBFとMTTRからシステムの稼働率を求める計算式は？', answer: 'MTBF / (MTBF + MTTR)', explanation: 'MTBF(平均故障間隔)は正常に稼働している平均時間、MTTR(平均修復時間)は修理にかかる平均時間です。' },
-  { id: 'ap-2', genre: '応用情報', question: '関係データベースにおいて、レコードを一意に識別するための属性または属性の組を何というか？', answer: '主キー (Primary Key)', explanation: '主キーには「一意性(重複しない)」と「非NULL制約(空であってはいけない)」という2つの条件を満たす必要があります。' },
-  { id: 'ap-3', genre: '応用情報', question: '仮想記憶方式において、主記憶と磁気ディスクの間で固定長のブロック単位で領域を管理する方式は？', answer: 'ページング方式', explanation: '固定長のブロックを「ページ」と呼びます。可変長の論理的な単位で管理する方式は「セグメント方式」です。' },
-  { id: 'ap-4', genre: '応用情報', question: 'TCP/IPモデルにおいて、HTTPやFTPが属する階層はどれか？', answer: 'アプリケーション層', explanation: 'TCP/IPモデルは4階層からなり、HTTP/FTP/SMTPなどはアプリケーション層に分類されます。' },
-  { id: 'ap-5', genre: '応用情報', question: '公開鍵暗号方式において、送信者のデジタル署名を検証するために使用する鍵はどれか？', answer: '送信者の公開鍵', explanation: '送信者が「自身の秘密鍵」で暗号化し、受信者が「送信者の公開鍵」で復号することで、なりすましを検知します。' },
-  { id: 'st-1', genre: '統計検定2級', question: '標準正規分布の平均と分散はそれぞれいくつか？', answer: '平均 0、分散 1', explanation: '任意の正規分布に従う変数は、標準化することで平均0・分散1の標準正規分布に従います。' },
-  { id: 'st-2', genre: '統計検定2級', question: '帰無仮説が正しいにもかかわらず、誤って棄却してしまうエラーを何というか？', answer: '第一種の過誤 (アルファエラー)', explanation: '「本当は差がないのに、差があると結論づけてしまう」慌て者のエラーです。' },
-  { id: 'st-3', genre: '統計検定2級', question: '2つの変数の間に線形関係があるかどうかを示す指標で、-1から1の値をとるものは？', answer: 'ピアソンの積率相関係数', explanation: '1に近いほど強い正の相関、-1に近いほど強い負の相関を示します。' },
-  { id: 'st-4', genre: '統計検定2級', question: '母集団から抽出されたサンプルの平均値の分散は、サンプルサイズ(n)が大きくなるにつれてどうなるか？', answer: '小さくなる', explanation: '標本平均の分散は σ² / n となるため、サンプルサイズが大きいほど分散は小さくなります。' },
-  { id: 'st-5', genre: '統計検定2級', question: '質的データ（カテゴリデータ）の独立性の検定によく用いられる確率分布は？', answer: 'カイ二乗分布', explanation: 'クロス集計表において、観測度数と期待度数のズレを計算し、カイ二乗分布を用いて検定します。' },
   // --- データの基礎 ---
   { id: 'db-1', genre: 'データの基礎', question: 'データを大きく2つに分けると、身長や体重など四則演算に意味がある【　A　】データと、性別や血液型などカテゴリを表す【　B　】データに分類される。', answer: 'A. 量的　B. 質的', explanation: '量的データはさらに離散型（人数など）と連続型（身長など）に分けられます。質的データに対しては平均値を求めるなどの計算は意味を持ちません。' },
   { id: 'db-2', genre: 'データの基礎', question: '質的データのうち、大小関係に意味がなく単なる名前としての役割を果たす尺度を【　A　】尺度と呼び、成績の5段階評価のように大小関係に意味がある尺度を【　B　】尺度と呼ぶ。', answer: 'A. 名義　B. 順序', explanation: 'アンケートの「1:不満〜5:満足」などは順序尺度です。これらは間隔が等しいとは限らないため、厳密には平均値を計算することには適していません。' },
@@ -369,7 +359,7 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export default function App() {
   const [screen, setScreen] = useState<ScreenType>('title');
-  const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<Genre | 'all' | null>(null);
   const [playMode, setPlayMode] = useState<PlayMode>('all');
   
   // 設定
@@ -384,6 +374,7 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showWatermarks, setShowWatermarks] = useState(true);
   // Framer Motion Drag State
 // LocalStorage Loading
   useEffect(() => {
@@ -392,6 +383,8 @@ export default function App() {
       try { setBookmarks(JSON.parse(savedBookmarks)); } catch (e) { console.error(e); }
     }
     
+    const savedWatermarks = localStorage.getItem('quiz_show_watermarks');
+    if (savedWatermarks !== null) setShowWatermarks(savedWatermarks === 'true');
     const savedAnim = localStorage.getItem('quiz_anim_enabled');
     if (savedAnim !== null) {
       setIsAnimEnabled(savedAnim === 'true');
@@ -414,8 +407,8 @@ export default function App() {
     setBookmarks(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]);
   }, []);
 
-  const handleStartQuiz = (genre: Genre, mode: PlayMode) => {
-    let questions = quizData.filter(q => q.genre === genre);
+  const handleStartQuiz = (genre: Genre | 'all', mode: PlayMode) => {
+    let questions = genre === 'all' ? [...quizData] : quizData.filter(q => q.genre === genre);
     if (mode === 'bookmark') {
       questions = questions.filter(q => bookmarks.includes(q.id));
     }
@@ -518,101 +511,139 @@ return (
             トップ画面 
             ============================== */}
         {screen === 'title' && (
-          <div className="animate-fade-in space-y-12 py-8">
+          <div className="animate-fade-in space-y-12 py-8 flex flex-col items-center justify-center min-h-[80vh]">
             <div className="text-center space-y-4">
               <div className="inline-flex items-center justify-center p-3 mb-2 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl">
                 <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <h1 className="text-5xl sm:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-500 drop-shadow-sm">
+              <h1 className="text-5xl sm:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-500 drop-shadow-sm">
                 Flashcard Studio
               </h1>
-              <p className="text-slate-400 text-lg font-medium tracking-wide">スタイリッシュに、効率的に学ぶ。</p>
+              <p className="text-slate-400 text-lg sm:text-xl font-medium tracking-wide">スタイリッシュに、効率的に学ぶ。</p>
             </div>
 
-            {/* 設定エリア */}
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+            <div className="w-full max-w-md mt-12">
+              <button
+                onClick={() => setScreen('category')}
+                className="w-full relative group"
+              >
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur opacity-25 group-hover:opacity-75 transition duration-500"></div>
+                <div className="relative flex items-center justify-between p-6 sm:p-8 bg-slate-900 border border-slate-700/50 rounded-3xl transition-transform active:scale-[0.98]">
+                  <div className="text-left">
+                    <span className="block text-indigo-400 font-bold tracking-widest text-sm mb-2">COURSE</span>
+                    <span className="block text-3xl sm:text-4xl font-extrabold text-white">統計検定2級</span>
+                  </div>
+                  <svg className="w-8 h-8 text-slate-400 group-hover:text-white transition-colors group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
+            </div>
+            
+            {/* 設定ボタン */}
+            <div className="absolute top-6 right-6">
+              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center w-12 h-12 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all text-slate-300 hover:text-white">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ==============================
+            カテゴリ選択画面 
+            ============================== */}
+        {screen === 'category' && (
+          <div className="animate-fade-in space-y-8 py-8">
+            <div className="flex items-center justify-between mb-8">
+              <button onClick={() => setScreen('title')} className="flex items-center text-slate-400 hover:text-white transition-colors">
+                <svg className="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                戻る
+              </button>
+              <h2 className="text-2xl font-black text-white">統計検定2級</h2>
+              <div className="w-16"></div>
+            </div>
+
+            <div className="flex justify-end mb-4">
               <label className="flex items-center space-x-3 cursor-pointer group bg-white/5 px-5 py-3 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
                 <div className="relative">
                   <input type="checkbox" className="sr-only" checked={isShuffle} onChange={() => setIsShuffle(!isShuffle)} />
                   <div className={`block w-10 h-6 rounded-full transition-colors ${isShuffle ? 'bg-indigo-500' : 'bg-slate-700'}`}></div>
                   <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isShuffle ? 'translate-x-4' : ''}`}></div>
                 </div>
-                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">
-                  出題順をシャッフル
-                </span>
+                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">出題順をシャッフル</span>
               </label>
-
-              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center space-x-2 bg-white/5 px-5 py-3 rounded-full border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all text-slate-300 hover:text-white font-bold text-sm">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span>設定</span>
-              </button>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
+              {/* すべての章 */}
+              <div className="md:col-span-2 bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                  <div>
+                    <h3 className="text-2xl font-black text-white mb-2">すべての章から出題</h3>
+                    <p className="text-slate-400 text-sm">全範囲からランダムに、または順に出題します。</p>
+                  </div>
+                  <div className="flex gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => handleStartQuiz('all', 'all')}
+                      className="flex-1 sm:flex-none px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-colors active:scale-95 shadow-lg shadow-indigo-600/30"
+                    >
+                      全問演習
+                    </button>
+                    <button
+                      onClick={() => handleStartQuiz('all', 'bookmark')}
+                      disabled={bookmarks.length === 0}
+                      className={`flex-1 sm:flex-none px-6 py-4 font-bold rounded-2xl transition-colors active:scale-95 border ${bookmarks.length > 0 ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-600' : 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed'}`}
+                    >
+                      ★ 復習 ({bookmarks.length})
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 各章 */}
               {genres.map(genre => {
                 const totalCount = quizData.filter(q => q.genre === genre).length;
                 const bookmarkCount = quizData.filter(q => q.genre === genre && bookmarks.includes(q.id)).length;
-
                 return (
-                  <div key={genre} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl hover:bg-white/10 transition-all duration-300 group">
-                    <div className="flex justify-between items-start mb-8">
-                      <h2 className="text-3xl font-extrabold text-white tracking-tight">{genre}</h2>
-                      <div className="flex items-center space-x-3 text-sm font-bold bg-black/20 px-4 py-2 rounded-2xl border border-white/5">
-                        <span className="text-slate-300">全 {totalCount}</span>
-                        <span className="text-slate-600">|</span>
-                        <span className="text-amber-400 flex items-center gap-1">★ {bookmarkCount}</span>
-                      </div>
+                  <div key={genre} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl hover:bg-white/10 transition-all duration-300">
+                    <div className="flex justify-between items-start mb-6">
+                      <h3 className="text-xl font-bold text-white leading-tight">{genre}</h3>
                     </div>
-                    
-                    <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-3 text-sm font-bold bg-black/20 px-4 py-2 rounded-2xl border border-white/5 mb-6 w-max">
+                        <span className="text-slate-300">全 {totalCount}問</span>
+                        <span className="text-slate-600">|</span>
+                        <span className="text-amber-400">★ {bookmarkCount}</span>
+                    </div>
+                    <div className="flex gap-3">
                       <button
                         onClick={() => handleStartQuiz(genre, 'all')}
-                        className="w-full flex items-center justify-between p-5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-2xl transition-all shadow-lg shadow-indigo-500/25 active:scale-[0.98]"
+                        className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors active:scale-95 text-sm"
                       >
-                        <div className="text-left">
-                          <span className="block font-bold text-white text-xl mb-1">全問演習</span>
-                          <span className="block text-indigo-100 text-sm font-medium">基礎からすべて学習する</span>
-                        </div>
-                        <svg className="w-6 h-6 text-white opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        演習
                       </button>
-
                       <button
                         onClick={() => handleStartQuiz(genre, 'bookmark')}
                         disabled={bookmarkCount === 0}
-                        className={`w-full flex items-center justify-between p-5 rounded-2xl transition-all border active:scale-[0.98] ${
-                          bookmarkCount > 0 
-                            ? "bg-white/5 hover:bg-white/10 text-white border-white/20 shadow-xl" 
-                            : "bg-black/10 text-slate-600 cursor-not-allowed border-transparent"
-                        }`}
+                        className={`flex-1 py-3 font-bold rounded-xl transition-colors active:scale-95 text-sm ${bookmarkCount > 0 ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300' : 'bg-white/5 text-slate-600 cursor-not-allowed'}`}
                       >
-                        <div className="text-left">
-                          <span className="block font-bold text-lg mb-1 flex items-center">
-                            <span className={`${bookmarkCount > 0 ? 'text-amber-400' : 'text-slate-600'} mr-2 text-xl`}>★</span>
-                            ブックマーク演習
-                          </span>
-                          <span className={bookmarkCount > 0 ? "block text-slate-400 text-sm font-medium" : "block text-slate-600 text-sm font-medium"}>
-                            {bookmarkCount > 0 ? "要チェックの問題を復習" : "ブックマークがありません"}
-                          </span>
-                        </div>
-                        <svg className={`w-6 h-6 opacity-50 ${bookmarkCount > 0 ? 'text-white' : 'hidden'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        復習
                       </button>
                     </div>
                   </div>
                 );
               })}
             </div>
-
-            {/* バージョン表記 */}
-            <div className="flex justify-center pt-8 opacity-50 pointer-events-none">
-              <span className="text-xs font-mono tracking-widest text-slate-400">v1.0.1</span>
-            </div>
           </div>
         )}
 
         {/* ==============================
-            学習（問題）画面 
+            クイズ画面 
             ============================== */}
         {screen === 'quiz' && (
           <div className="animate-fade-in flex flex-col h-[85vh] max-h-[800px] touch-none">
@@ -678,6 +709,7 @@ return (
                   <SwipeCard
                     question={targetQuestions[currentQuestionIndex]}
                     isAnimEnabled={isAnimEnabled}
+                    showWatermarks={showWatermarks}
                     onNext={(dir) => handleNext(dir === 'right' ? 'swipeRight' : 'swipeLeft')}
                     onPrev={(dir) => handleNext(dir === 'left' ? 'swipeLeft' : 'swipeRight')}
                   />
